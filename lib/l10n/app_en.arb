@@ -1,0 +1,15 @@
+{
+  "@@locale": "en",
+  "appTitle": "CompFlow",
+  "@appTitle": {
+    "description": "The application title"
+  },
+  "splashAppName": "CompFlow",
+  "@splashAppName": {
+    "description": "Application name shown on the splash screen"
+  },
+  "splashLoading": "Loading...",
+  "@splashLoading": {
+    "description": "Loading text shown on the splash screen"
+  }
+}
