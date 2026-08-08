@@ -5,7 +5,11 @@ import '../database/products_dao.dart';
 import '../repositories/products_repository.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  return AppDatabase();
+  final db = AppDatabase();
+
+  ref.onDispose(db.close);
+
+  return db;
 });
 
 final productsDaoProvider = Provider<ProductsDao>((ref) {

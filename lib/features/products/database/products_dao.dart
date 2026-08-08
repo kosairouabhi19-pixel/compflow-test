@@ -40,4 +40,25 @@ class ProductsDao extends DatabaseAccessor<AppDatabase>
           ..where((t) => t.name.like('%$query%')))
         .get();
   }
+
+  Future<bool> decreaseStock(
+    String productId,
+    int quantity,
+  ) async {
+    final product = await getProductById(productId);
+
+    if (product == null) {
+      return false;
+    }
+
+    if (product.quantity < quantity) {
+      return false;
+    }
+
+    final updated = product.copyWith(
+      quantity: product.quantity - quantity,
+    );
+
+    return updateProduct(updated);
+  }
 }

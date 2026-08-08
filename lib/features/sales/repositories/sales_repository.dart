@@ -29,4 +29,18 @@ class SalesRepository {
   Future<int> deleteSale(String id) {
     return _dao.deleteSale(id);
   }
+
+  Future<List<Sale>> searchSales(String query) {
+    return _dao.searchSales(query);
+  }
+  
+  Future<bool> completeSale({
+  required Sale sale,
+  required List<SaleItemsCompanion> items,
+}) {
+  return _dao.completeSale(
+    sale: sale,
+    items: items,
+  );
+}
 }
