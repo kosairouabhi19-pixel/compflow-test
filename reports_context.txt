@@ -1,0 +1,326 @@
+﻿
+========== lib/features/reports/pages/reports_page.dart ==========
+
+import 'package:flutter/material.dart';
+
+class ReportsPage extends StatelessWidget {
+  const ReportsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Text('Reports'),
+      ),
+    );
+  }
+}
+
+========== lib/features/purchases/database/purchases_table.dart ==========
+
+import 'package:drift/drift.dart';
+import '../../../core/database/base_table.dart';
+
+class Purchases extends BaseTable {
+  TextColumn get supplierId => text()();
+
+  TextColumn get invoiceNumber => text()();
+
+  RealColumn get total => real()();
+
+  DateTimeColumn get purchaseDate => dateTime()();
+
+  TextColumn get notes => text().nullable()();
+}
+
+========== lib/features/purchases/database/purchases_dao.dart ==========
+
+import 'package:drift/drift.dart';
+
+import '../../../core/database/app_database.dart';
+import 'purchases_table.dart';
+
+part 'purchases_dao.g.dart';
+
+@DriftAccessor(tables: [Purchases])
+class PurchasesDao extends DatabaseAccessor<AppDatabase>
+    with _$PurchasesDaoMixin {
+  PurchasesDao(super.db);
+
+  Future<List<Purchase>> getAllPurchases() {
+    return select(purchases).get();
+  }
+
+  Stream<List<Purchase>> watchAllPurchases() {
+    return select(purchases).watch();
+  }
+
+  Future<Purchase?> getPurchaseById(String id) {
+    return (select(purchases)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  Future<int> insertPurchase(PurchasesCompanion purchase) {
+    return into(purchases).insert(purchase);
+  }
+
+  Future<bool> updatePurchase(Purchase purchase) {
+    return update(purchases).replace(purchase);
+  }
+
+  Future<int> deletePurchase(String id) {
+    return (delete(purchases)..where((t) => t.id.equals(id))).go();
+  }
+}
+
+========== lib/features/purchases/repositories/purchases_repository.dart ==========
+
+import '../../../core/database/app_database.dart';
+import '../database/purchases_dao.dart';
+
+class PurchasesRepository {
+  final PurchasesDao _dao;
+
+  PurchasesRepository(this._dao);
+
+  Stream<List<Purchase>> watchAllPurchases() {
+    return _dao.watchAllPurchases();
+  }
+
+  Future<List<Purchase>> getAllPurchases() {
+    return _dao.getAllPurchases();
+  }
+
+  Future<Purchase?> getPurchaseById(String id) {
+    return _dao.getPurchaseById(id);
+  }
+
+  Future<int> insertPurchase(PurchasesCompanion purchase) {
+    return _dao.insertPurchase(purchase);
+  }
+
+  Future<bool> updatePurchase(Purchase purchase) {
+    return _dao.updatePurchase(purchase);
+  }
+
+  Future<int> deletePurchase(String id) {
+    return _dao.deletePurchase(id);
+  }
+}
+
+========== lib/features/expenses/database/expenses_table.dart ==========
+
+import 'package:drift/drift.dart';
+import '../../../core/database/base_table.dart';
+
+class Expenses extends BaseTable {
+  TextColumn get title => text()();
+
+  RealColumn get amount => real()();
+
+  DateTimeColumn get expenseDate => dateTime()();
+
+  TextColumn get category => text().nullable()();
+
+  TextColumn get notes => text().nullable()();
+}
+
+========== lib/features/expenses/database/expenses_dao.dart ==========
+
+import 'package:drift/drift.dart';
+
+import '../../../core/database/app_database.dart';
+import 'expenses_table.dart';
+
+part 'expenses_dao.g.dart';
+
+@DriftAccessor(tables: [Expenses])
+class ExpensesDao extends DatabaseAccessor<AppDatabase>
+    with _$ExpensesDaoMixin {
+  ExpensesDao(super.db);
+
+  Future<List<Expense>> getAllExpenses() => select(expenses).get();
+
+  Stream<List<Expense>> watchAllExpenses() => select(expenses).watch();
+
+  Future<Expense?> getExpenseById(String id) =>
+      (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  Future<int> insertExpense(ExpensesCompanion expense) =>
+      into(expenses).insert(expense);
+
+  Future<bool> updateExpense(Expense expense) =>
+      update(expenses).replace(expense);
+
+  Future<int> deleteExpense(String id) =>
+      (delete(expenses)..where((t) => t.id.equals(id))).go();
+}
+
+========== lib/features/expenses/repositories/expenses_repository.dart ==========
+
+import '../../../core/database/app_database.dart';
+import '../database/expenses_dao.dart';
+
+class ExpensesRepository {
+  final ExpensesDao _dao;
+
+  ExpensesRepository(this._dao);
+
+  Stream<List<Expense>> watchAllExpenses() => _dao.watchAllExpenses();
+
+  Future<List<Expense>> getAllExpenses() => _dao.getAllExpenses();
+
+  Future<Expense?> getExpenseById(String id) =>
+      _dao.getExpenseById(id);
+
+  Future<int> insertExpense(ExpensesCompanion expense) =>
+      _dao.insertExpense(expense);
+
+  Future<bool> updateExpense(Expense expense) =>
+      _dao.updateExpense(expense);
+
+  Future<int> deleteExpense(String id) =>
+      _dao.deleteExpense(id);
+}
+
+========== lib/features/payments/database/payments_table.dart ==========
+
+import 'package:drift/drift.dart';
+import '../../../core/database/base_table.dart';
+
+class Payments extends BaseTable {
+  TextColumn get customerId => text()();
+
+  RealColumn get amount => real()();
+
+  DateTimeColumn get paymentDate => dateTime()();
+
+  TextColumn get paymentMethod => text()();
+
+  TextColumn get notes => text().nullable()();
+}
+
+========== lib/features/payments/database/payments_dao.dart ==========
+
+import 'package:drift/drift.dart';
+
+import '../../../core/database/app_database.dart';
+import 'payments_table.dart';
+
+part 'payments_dao.g.dart';
+
+@DriftAccessor(tables: [Payments])
+class PaymentsDao extends DatabaseAccessor<AppDatabase>
+    with _$PaymentsDaoMixin {
+  PaymentsDao(super.db);
+
+  Future<List<Payment>> getAllPayments() => select(payments).get();
+
+  Stream<List<Payment>> watchAllPayments() => select(payments).watch();
+
+  Future<Payment?> getPaymentById(String id) =>
+      (select(payments)..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  Future<int> insertPayment(PaymentsCompanion payment) =>
+      into(payments).insert(payment);
+
+  Future<bool> updatePayment(Payment payment) =>
+      update(payments).replace(payment);
+
+  Future<int> deletePayment(String id) =>
+      (delete(payments)..where((t) => t.id.equals(id))).go();
+}
+
+========== lib/features/payments/repositories/payments_repository.dart ==========
+
+import '../../../core/database/app_database.dart';
+import '../database/payments_dao.dart';
+
+class PaymentsRepository {
+  final PaymentsDao _dao;
+
+  PaymentsRepository(this._dao);
+
+  Stream<List<Payment>> watchAllPayments() => _dao.watchAllPayments();
+
+  Future<List<Payment>> getAllPayments() => _dao.getAllPayments();
+
+  Future<Payment?> getPaymentById(String id) => _dao.getPaymentById(id);
+
+  Future<int> insertPayment(PaymentsCompanion payment) =>
+      _dao.insertPayment(payment);
+
+  Future<bool> updatePayment(Payment payment) =>
+      _dao.updatePayment(payment);
+
+  Future<int> deletePayment(String id) =>
+      _dao.deletePayment(id);
+}
+
+========== lib/core/database/app_database.dart ==========
+
+import 'dart:io';
+
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+
+import '../../features/products/database/products_table.dart';
+import '../../features/customers/database/customers_table.dart';
+import '../../features/invoices/database/invoices_table.dart';
+import '../sync/sync_queue_table.dart';
+import '../../features/inventory/database/inventory_table.dart';
+import '../../features/purchases/database/purchases_table.dart';
+import '../../features/sales/database/sales_table.dart';
+import '../../features/expenses/database/expenses_table.dart';
+import '../../features/payments/database/payments_table.dart';
+import '../../features/sales/database/sale_items_table.dart';
+
+part 'app_database.g.dart';
+
+@DriftDatabase(
+  tables: [
+    SyncQueueTable,
+    Products,
+    Customers,
+    Invoices,
+    Inventory,
+    Purchases,
+    Sales,
+    Expenses,
+    Payments,
+    SaleItems,
+  ],
+)
+class AppDatabase extends _$AppDatabase {
+  AppDatabase() : super(_openConnection());
+
+  @override
+  int get schemaVersion => 2;
+
+  static LazyDatabase _openConnection() {
+    return LazyDatabase(() async {
+      final Directory directory =
+          await getApplicationDocumentsDirectory();
+
+      final File file = File(
+        p.join(directory.path, 'compflow.sqlite'),
+      );
+
+      return NativeDatabase.createInBackground(file);
+    });
+  }
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(saleItems);
+          }
+        },
+      );
+}

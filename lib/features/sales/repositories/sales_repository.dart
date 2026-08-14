@@ -1,3 +1,4 @@
+// lib/features/sales/repositories/sales_repository.dart
 import '../../../core/database/app_database.dart';
 import '../database/sales_dao.dart';
 
@@ -26,21 +27,21 @@ class SalesRepository {
     return _dao.updateSale(sale);
   }
 
-  Future<int> deleteSale(String id) {
+  Future<void> deleteSale(String id) {
     return _dao.deleteSale(id);
   }
 
   Future<List<Sale>> searchSales(String query) {
     return _dao.searchSales(query);
   }
-  
+
   Future<bool> completeSale({
-  required Sale sale,
-  required List<SaleItemsCompanion> items,
-}) {
-  return _dao.completeSale(
-    sale: sale,
-    items: items,
-  );
-}
+    required Sale sale,
+    required List<SaleItemsCompanion> items,
+  }) {
+    return _dao.completeSale(
+      sale: sale,
+      items: items,
+    );
+  }
 }

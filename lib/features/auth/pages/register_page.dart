@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 import '../providers/auth_providers.dart';
 import '../providers/auth_state.dart';
 import '../widgets/auth_error_text.dart';
@@ -41,6 +43,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final AuthState authState = ref.watch(authControllerProvider);
 
@@ -78,7 +81,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ),
                     const SizedBox(height: 32),
                     Text(
-                      'إنشاء حساب',
+                      l10n.authRegisterTitle,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w600,
@@ -87,12 +90,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     const SizedBox(height: 32),
                     AuthTextField(
                       controller: _fullNameController,
-                      labelText: 'الاسم الكامل',
+                      labelText: l10n.authFullName,
                       keyboardType: TextInputType.name,
                       textInputAction: TextInputAction.next,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'الرجاء إدخال الاسم الكامل';
+                          return l10n.authFullNameRequired;
                         }
                         return null;
                       },
@@ -100,12 +103,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     const SizedBox(height: 16),
                     AuthTextField(
                       controller: _emailController,
-                      labelText: 'البريد الإلكتروني',
+                      labelText: l10n.authEmail,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'الرجاء إدخال البريد الإلكتروني';
+                          return l10n.authEmailRequired;
                         }
                         return null;
                       },
@@ -113,15 +116,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     const SizedBox(height: 16),
                     AuthTextField(
                       controller: _passwordController,
-                      labelText: 'كلمة المرور',
+                      labelText: l10n.authPassword,
                       obscureText: true,
                       textInputAction: TextInputAction.next,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'الرجاء إدخال كلمة المرور';
+                          return l10n.authPasswordRequired;
                         }
                         if (value.length < 6) {
-                          return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+                          return l10n.authPasswordMinLength;
                         }
                         return null;
                       },
@@ -129,15 +132,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     const SizedBox(height: 16),
                     AuthTextField(
                       controller: _confirmPasswordController,
-                      labelText: 'تأكيد كلمة المرور',
+                      labelText: l10n.authConfirmPassword,
                       obscureText: true,
                       textInputAction: TextInputAction.done,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'الرجاء تأكيد كلمة المرور';
+                          return l10n.authConfirmPasswordRequired;
                         }
                         if (value != _passwordController.text) {
-                          return 'كلمتا المرور غير متطابقتين';
+                          return l10n.authPasswordsMismatch;
                         }
                         return null;
                       },
@@ -148,7 +151,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ],
                     const SizedBox(height: 24),
                     AuthSubmitButton(
-                      label: 'إنشاء حساب',
+                      label: l10n.authRegisterTitle,
                       isLoading: authState.isLoading,
                       onPressed: _handleRegister,
                     ),

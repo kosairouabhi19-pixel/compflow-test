@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 import '../providers/auth_providers.dart';
 import '../providers/auth_state.dart';
 import '../widgets/auth_error_text.dart';
@@ -37,6 +39,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final AuthState authState = ref.watch(authControllerProvider);
 
@@ -74,7 +77,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     const SizedBox(height: 32),
                     Text(
-                      'تسجيل الدخول',
+                      l10n.authLoginTitle,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w600,
@@ -83,12 +86,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     const SizedBox(height: 32),
                     AuthTextField(
                       controller: _emailController,
-                      labelText: 'البريد الإلكتروني',
+                      labelText: l10n.authEmail,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'الرجاء إدخال البريد الإلكتروني';
+                          return l10n.authEmailRequired;
                         }
                         return null;
                       },
@@ -96,12 +99,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     const SizedBox(height: 16),
                     AuthTextField(
                       controller: _passwordController,
-                      labelText: 'كلمة المرور',
+                      labelText: l10n.authPassword,
                       obscureText: true,
                       textInputAction: TextInputAction.done,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'الرجاء إدخال كلمة المرور';
+                          return l10n.authPasswordRequired;
                         }
                         return null;
                       },
@@ -112,18 +115,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ],
                     const SizedBox(height: 24),
                     AuthSubmitButton(
-                      label: 'تسجيل الدخول',
+                      label: l10n.authLoginTitle,
                       isLoading: authState.isLoading,
                       onPressed: _handleSignIn,
                     ),
                     const SizedBox(height: 12),
                     TextButton(
                       onPressed: () {},
-                      child: const Text('نسيت كلمة المرور؟'),
+                      child: Text(l10n.authForgotPassword),
                     ),
                     TextButton(
                       onPressed: () {},
-                      child: const Text('إنشاء حساب'),
+                      child: Text(l10n.authCreateAccount),
                     ),
                   ],
                 ),

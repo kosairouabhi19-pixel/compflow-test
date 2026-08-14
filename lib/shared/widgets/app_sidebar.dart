@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+
 class AppSidebar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onSelect;
@@ -12,65 +14,170 @@ class AppSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     final items = [
-      (Icons.dashboard_rounded, "Dashboard"),
-      (Icons.point_of_sale_rounded, "POS"),
-      (Icons.inventory_2_rounded, "Products"),
-      (Icons.receipt_long_rounded, "Sales"),
-      (Icons.people_alt_rounded, "Users"),
-      (Icons.settings_rounded, "Settings"),
+      (
+        Icons.dashboard_rounded,
+        l10n.navDashboard,
+      ),
+      (
+        Icons.point_of_sale_rounded,
+        l10n.navPos,
+      ),
+      (
+        Icons.inventory_2_rounded,
+        l10n.navProducts,
+      ),
+      (
+        Icons.receipt_long_rounded,
+        l10n.navSales,
+      ),
+      (
+        Icons.people_alt_rounded,
+        l10n.navUsers,
+      ),
+      (
+        Icons.settings_rounded,
+        l10n.navSettings,
+      ),
     ];
 
     return Container(
-      width: 90,
-      color: const Color(0xFF14343C),
+      width: 240,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        border: BorderDirectional(
+          end: BorderSide(
+            color: colorScheme.outlineVariant,
+          ),
+        ),
+      ),
       child: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 16),
-
-            const Icon(
-              Icons.memory_rounded,
-              color: Colors.white,
-              size: 34,
-            ),
-
-            const SizedBox(height: 24),
-
-            for (int i = 0; i < items.length; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Tooltip(
-                  message: items[i].$2,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => onSelect(i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: selectedIndex == i
-                            ? Colors.white.withValues(alpha: 0.15)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        items[i].$1,
-                        color: Colors.white,
-                      ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.memory_rounded,
+                      color: colorScheme.onPrimary,
+                      size: 24,
                     ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'CompFlow',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
+            ),
 
-            const Spacer(),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final selected = selectedIndex == index;
 
-            const Padding(
-              padding: EdgeInsets.only(bottom: 18),
-              child: CircleAvatar(
-                radius: 20,
-                child: Icon(Icons.person),
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => onSelect(index),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 13,
+                          ),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? colorScheme.primaryContainer
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                item.$1,
+                                size: 22,
+                                color: selected
+                                    ? colorScheme.onPrimaryContainer
+                                    : colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  item.$2,
+                                  style:
+                                      theme.textTheme.bodyLarge?.copyWith(
+                                    fontWeight: selected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    color: selected
+                                        ? colorScheme.onPrimaryContainer
+                                        : colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 19,
+                      backgroundColor: colorScheme.primary,
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: colorScheme.onPrimary,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        l10n.navUsers,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

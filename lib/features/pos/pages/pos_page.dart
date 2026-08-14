@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../core/database/app_database.dart';
 import '../../products/providers/products_providers.dart';
 import '../../sales/providers/sales_providers.dart';
@@ -35,17 +36,16 @@ class PosPage extends ConsumerStatefulWidget {
 class _PosPageState extends ConsumerState<PosPage> {
   final List<CartItem> cart = [];
 
-  final TextEditingController _searchController =
-      TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   final Uuid _uuid = const Uuid();
 
-  static const String _tenantId =
-      '11111111-1111-1111-1111-111111111111';
+  static const String _tenantId = '11111111-1111-1111-1111-111111111111';
 
   static const String _deviceId = 'windows';
 
   String _searchQuery = '';
+  bool _onlyInStock = false;
 
   @override
   void dispose() {
@@ -57,6 +57,13 @@ class _PosPageState extends ConsumerState<PosPage> {
     return cart.fold(
       0,
       (sum, item) => sum + item.totalPrice,
+    );
+  }
+
+  int get totalItemsCount {
+    return cart.fold(
+      0,
+      (sum, item) => sum + item.quantity,
     );
   }
 
@@ -78,10 +85,12 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   void addToCart(Product product) {
+    final l10n = AppLocalizations.of(context);
     if (product.quantity <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('المنتج غير متوفر في المخزون'),
+        SnackBar(
+          content: Text(l10n.posOutOfStock),
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -97,8 +106,9 @@ class _PosPageState extends ConsumerState<PosPage> {
           cart[index].quantity++;
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('لا يمكن تجاوز كمية المخزون'),
+            SnackBar(
+              content: Text(l10n.posStockExceeded),
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -116,12 +126,14 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   void increaseQuantity(int index) {
+    final l10n = AppLocalizations.of(context);
     final item = cart[index];
 
     if (item.quantity >= item.stock) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لا يمكن تجاوز كمية المخزون'),
+        SnackBar(
+          content: Text(l10n.posStockExceeded),
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -142,7 +154,20 @@ class _PosPageState extends ConsumerState<PosPage> {
     });
   }
 
+  void removeFromCart(int index) {
+    setState(() {
+      cart.removeAt(index);
+    });
+  }
+
+  void clearCart() {
+    setState(() {
+      cart.clear();
+    });
+  }
+
   Future<void> completeSale() async {
+    final l10n = AppLocalizations.of(context);
     if (cart.isEmpty) return;
 
     try {
@@ -156,8 +181,7 @@ class _PosPageState extends ConsumerState<PosPage> {
         id: _uuid.v4(),
         tenantId: _tenantId,
         customerId: '',
-        invoiceNumber:
-            'INV-${now.millisecondsSinceEpoch}',
+        invoiceNumber: 'INV-${now.millisecondsSinceEpoch}',
         total: total,
         saleDate: now,
         notes: null,
@@ -199,8 +223,9 @@ class _PosPageState extends ConsumerState<PosPage> {
       ref.invalidate(productsProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم إتمام البيع بنجاح'),
+        SnackBar(
+          content: Text(l10n.posSaleSuccess),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
@@ -208,327 +233,587 @@ class _PosPageState extends ConsumerState<PosPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('فشل إتمام البيع: $e'),
+          content: Text(l10n.posCompleteSaleError(e)),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final productsAsync = ref.watch(productsProvider);
-
-    return productsAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      error: (error, stack) => Center(
-        child: Text(
-          'حدث خطأ في تحميل المنتجات',
-          style: const TextStyle(
-            color: Colors.red,
+  void _openMobileCartSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-        ),
-      ),
-      data: (products) {
-        final query = _searchQuery.trim().toLowerCase();
-
-        final filteredProducts = query.isEmpty
-            ? products
-            : products.where((product) {
-                final name = product.name.toLowerCase();
-                final sku = product.sku.toLowerCase();
-                final barcode =
-                    product.barcode?.toLowerCase() ?? '';
-
-                return name.contains(query) ||
-                    sku.contains(query) ||
-                    barcode.contains(query);
-              }).toList();
-
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Row(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // =========================
-              // المنتجات
-              // =========================
-              Expanded(
-                flex: 7,
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _searchController,
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText:
-                            'ابحث باسم المنتج أو الباركود أو SKU...',
-                        prefixIcon:
-                            const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Expanded(
-                      child: filteredProducts.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'لا توجد منتجات',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            )
-                          : GridView.builder(
-                              itemCount:
-                                  filteredProducts.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 4,
-                                mainAxisSpacing: 16,
-                                crossAxisSpacing: 16,
-                                childAspectRatio: .85,
-                              ),
-                              itemBuilder:
-                                  (context, index) {
-                                final product =
-                                    filteredProducts[index];
-
-                                return ProductCard(
-                                  name: product.name,
-                                  price: formatPrice(
-                                    product.sellingPrice,
-                                  ),
-                                  stock:
-                                      'Stock: ${product.quantity}',
-                                  onTap: () =>
-                                      addToCart(product),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-
-              const SizedBox(width: 24),
-
-              // =========================
-              // السلة
-              // =========================
-              Container(
-                width: 340,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius:
-                      BorderRadius.circular(18),
-                  border: Border.all(
-                    color: Colors.grey.shade300,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-
-                    const Text(
-                      'Shopping Cart',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const Divider(),
-
-                    Expanded(
-                      child: cart.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'السلة فارغة',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: cart.length,
-                              itemBuilder:
-                                  (context, index) {
-                                final item =
-                                    cart[index];
-
-                                return Card(
-                                  margin:
-                                      const EdgeInsets
-                                          .symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  child: Padding(
-                                    padding:
-                                        const EdgeInsets
-                                            .all(10),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment
-                                              .start,
-                                      children: [
-                                        Text(
-                                          item.name,
-                                          style:
-                                              const TextStyle(
-                                            fontWeight:
-                                                FontWeight
-                                                    .bold,
-                                          ),
-                                        ),
-
-                                        const SizedBox(
-                                          height: 4,
-                                        ),
-
-                                        Text(
-                                          '${formatPrice(item.price)} DA / وحدة',
-                                          style:
-                                              TextStyle(
-                                            color: Colors
-                                                .grey
-                                                .shade600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-
-                                        const SizedBox(
-                                          height: 8,
-                                        ),
-
-                                        Row(
-                                          children: [
-                                            IconButton(
-                                              onPressed: () =>
-                                                  decreaseQuantity(
-                                                index,
-                                              ),
-                                              icon:
-                                                  const Icon(
-                                                Icons
-                                                    .remove_circle_outline,
-                                              ),
-                                            ),
-
-                                            Text(
-                                              '${item.quantity}',
-                                              style:
-                                                  const TextStyle(
-                                                fontWeight:
-                                                    FontWeight
-                                                        .bold,
-                                                fontSize: 16,
-                                              ),
-                                            ),
-
-                                            IconButton(
-                                              onPressed: () =>
-                                                  increaseQuantity(
-                                                index,
-                                              ),
-                                              icon:
-                                                  const Icon(
-                                                Icons
-                                                    .add_circle_outline,
-                                              ),
-                                            ),
-
-                                            const Spacer(),
-
-                                            Text(
-                                              '${formatPrice(item.totalPrice)} DA',
-                                              style:
-                                                  const TextStyle(
-                                                color:
-                                                    Colors.teal,
-                                                fontWeight:
-                                                    FontWeight
-                                                        .bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-
-                    const Divider(),
-
-                    Padding(
-                      padding:
-                          const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment
-                                    .spaceBetween,
-                            children: [
-                              const Text(
-                                'Total',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight:
-                                      FontWeight.bold,
-                                ),
-                              ),
-
-                              Text(
-                                '${formatPrice(total)} DA',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight:
-                                      FontWeight.bold,
-                                  color: Colors.teal,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: 50,
-                            child: FilledButton(
-                              onPressed: cart.isEmpty
-                                  ? null
-                                  : completeSale,
-                              child: const Text(
-                                'Complete Sale',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildCartPanel(isMobileSheet: true),
                 ),
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final mediaQuery = MediaQuery.of(context);
+    final bool isDesktop = mediaQuery.size.width >= 900;
+
+    final productsAsync = ref.watch(productsProvider);
+
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      body: productsAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(),
+        ),
+        error: (error, stack) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 48,
+                  color: colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.posLoadProductsError,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.tonal(
+                  onPressed: () => ref.invalidate(productsProvider),
+                  child: Text(l10n.commonRetry),
+                ),
+              ],
+            ),
+          ),
+        ),
+        data: (products) {
+          final query = _searchQuery.trim().toLowerCase();
+
+          final filteredProducts = products.where((product) {
+            if (_onlyInStock && product.quantity <= 0) {
+              return false;
+            }
+
+            if (query.isEmpty) return true;
+
+            final name = product.name.toLowerCase();
+            final sku = product.sku.toLowerCase();
+            final barcode = product.barcode?.toLowerCase() ?? '';
+
+            return name.contains(query) ||
+                sku.contains(query) ||
+                barcode.contains(query);
+          }).toList();
+
+          return Column(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.all(isDesktop ? 20 : 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // =========================
+                      // قسم المنتجات (الجهة الرئيسية)
+                      // =========================
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // شريط البحث والفلترة
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _searchController,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _searchQuery = value;
+                                      });
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText: l10n.posSearchHint,
+                                      prefixIcon: const Icon(Icons.search_rounded),
+                                      suffixIcon: _searchQuery.isNotEmpty
+                                          ? IconButton(
+                                              icon: const Icon(Icons.clear_rounded),
+                                              onPressed: () {
+                                                _searchController.clear();
+                                                setState(() {
+                                                  _searchQuery = '';
+                                                });
+                                              },
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                FilterChip(
+                                  selected: _onlyInStock,
+                                  showCheckmark: false,
+                                  avatar: Icon(
+                                    _onlyInStock
+                                        ? Icons.check_circle_rounded
+                                        : Icons.inventory_2_outlined,
+                                    size: 18,
+                                    color: _onlyInStock
+                                        ? colorScheme.onPrimaryContainer
+                                        : colorScheme.onSurfaceVariant,
+                                  ),
+                                  label: Text(
+                                    l10n.navProducts,
+                                    style: TextStyle(
+                                      fontWeight: _onlyInStock
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      _onlyInStock = selected;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // شبكة المنتجات
+                            Expanded(
+                              child: filteredProducts.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.search_off_rounded,
+                                            size: 48,
+                                            color: colorScheme.outline,
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            l10n.posNoProducts,
+                                            style: theme.textTheme.bodyLarge
+                                                ?.copyWith(
+                                              color: colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final crossAxisCount = (constraints.maxWidth / 180)
+                                            .floor()
+                                            .clamp(2, 6);
+
+                                        return GridView.builder(
+                                          itemCount: filteredProducts.length,
+                                          gridDelegate:
+                                              SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: crossAxisCount,
+                                            mainAxisSpacing: 12,
+                                            crossAxisSpacing: 12,
+                                            childAspectRatio: 0.82,
+                                          ),
+                                          itemBuilder: (context, index) {
+                                            final product = filteredProducts[index];
+                                            final bool isOutOfStock = product.quantity <= 0;
+                                            final bool isLowStock = product.quantity > 0 &&
+                                                product.quantity <= product.minimumQuantity;
+
+                                            return ProductCard(
+                                              name: product.name,
+                                              price: '${formatPrice(product.sellingPrice)} ${l10n.currencyDzd}',
+                                              stock: l10n.posStock(product.quantity),
+                                              isOutOfStock: isOutOfStock,
+                                              isLowStock: isLowStock,
+                                              onTap: () => addToCart(product),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // =========================
+                      // لوحة السلة (في العرض الكبـير Desktop)
+                      // =========================
+                      if (isDesktop) ...[
+                        const SizedBox(width: 20),
+                        SizedBox(
+                          width: 380,
+                          child: _buildCartPanel(isMobileSheet: false),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              // =========================
+              // شريط السلة السفلي للموبايل (Mobile Docked Bar)
+              // =========================
+              if (!isDesktop) _buildMobileCartDockBar(context, l10n, colorScheme),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// بناء لوحة السلة الإحترافية
+  Widget _buildCartPanel({required bool isMobileSheet}) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        children: [
+          // ترويسة السلة
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.shopping_cart_outlined,
+                    color: colorScheme.onPrimaryContainer,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  l10n.posCartTitle,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (cart.isNotEmpty)
+                  Badge(
+                    label: Text('$totalItemsCount'),
+                    backgroundColor: colorScheme.primary,
+                    textColor: colorScheme.onPrimary,
+                  ),
+                const Spacer(),
+                if (cart.isNotEmpty)
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_sweep_outlined,
+                      color: colorScheme.error,
+                      size: 20,
+                    ),
+                    tooltip: l10n.commonClear,
+                    onPressed: clearCart,
+                  ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // قائمة عناصر السلة
+          Expanded(
+            child: cart.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.remove_shopping_cart_outlined,
+                          size: 44,
+                          color: colorScheme.outlineVariant,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          l10n.posCartEmpty,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    itemCount: cart.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = cart[index];
+
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    item.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.all(4),
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                    color: colorScheme.error,
+                                  ),
+                                  onPressed: () => removeFromCart(index),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              l10n.posPerUnit(formatPrice(item.price)),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                // أزرار التحكم بالكمية
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () => decreaseQuantity(index),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(6),
+                                          child: Icon(
+                                            Icons.remove_rounded,
+                                            size: 16,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                                        child: Text(
+                                          '${item.quantity}',
+                                          style: theme.textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () => increaseQuantity(index),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(6),
+                                          child: Icon(
+                                            Icons.add_rounded,
+                                            size: 16,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const Spacer(),
+
+                                // المجموع الجزئي
+                                Text(
+                                  '${formatPrice(item.totalPrice)} ${l10n.currencyDzd}',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+
+          const Divider(height: 1),
+
+          // قسم الإجمالي وزر إتمام البيع
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      l10n.posTotal,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '${formatPrice(total)} ${l10n.currencyDzd}',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: FilledButton.icon(
+                    onPressed: cart.isEmpty
+                        ? null
+                        : () async {
+                            await completeSale();
+                            if (isMobileSheet && mounted) {
+                              Navigator.of(context).pop();
+                            }
+                          },
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label: Text(
+                      l10n.posCompleteSale,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// شريط إحصائيات وإتمام البيع السفلي للموبايل
+  Widget _buildMobileCartDockBar(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme colorScheme,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${cart.length} ${l10n.navProducts}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              Text(
+                '${formatPrice(total)} ${l10n.currencyDzd}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          FilledButton.icon(
+            onPressed: cart.isEmpty
+                ? null
+                : () => _openMobileCartSheet(context),
+            icon: const Icon(Icons.shopping_bag_outlined),
+            label: Text(l10n.posCartTitle),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 class InventoryPage extends StatelessWidget {
   const InventoryPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
       body: Center(
-        child: Text('Inventory'),
+        child: Text(l10n.pageInventory),
       ),
     );
   }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 import '../../../core/database/app_database.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../providers/customers_providers.dart';
@@ -59,16 +61,17 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   }
 
   Future<void> _confirmDelete(BuildContext context, Customer customer) async {
+    final l10n = AppLocalizations.of(context);
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('حذف العميل'),
-          content: Text('هل أنت متأكد من حذف "${customer.fullName}"؟'),
+          title: Text(l10n.commonDelete),
+          content: Text(l10n.customersDeleteConfirm(customer.fullName)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('إلغاء'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton.tonal(
               style: FilledButton.styleFrom(
@@ -76,7 +79,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                 backgroundColor: Theme.of(context).colorScheme.errorContainer,
               ),
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('حذف'),
+              child: Text(l10n.commonDelete),
             ),
           ],
         );
@@ -87,7 +90,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
       await ref.read(customersRepositoryProvider).deleteCustomer(customer.id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم حذف "${customer.fullName}"')),
+          SnackBar(content: Text(l10n.customersDeleted(customer.fullName))),
         );
       }
       _refreshSearchIfActive();
@@ -96,12 +99,13 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final mediaQuery = MediaQuery.of(context);
     final bool isWide = mediaQuery.size.width >= 600;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('العملاء'),
+        title: Text(l10n.customersTitle),
       ),
       body: SafeArea(
         child: Column(
@@ -118,13 +122,13 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                 child: SearchBar(
                   controller: _searchController,
                   onChanged: _onSearchChanged,
-                  hintText: 'ابحث عن عميل بالاسم...',
+                  hintText: l10n.customersSearchHint,
                   leading: const Icon(Icons.search),
                   trailing: [
                     if (_searchQuery.isNotEmpty)
                       IconButton(
                         icon: const Icon(Icons.clear),
-                        tooltip: 'مسح البحث',
+                        tooltip: l10n.commonClear,
                         onPressed: () {
                           _searchController.clear();
                           _onSearchChanged('');
@@ -140,7 +144,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openCustomerForm(),
-        tooltip: 'إضافة عميل',
+        tooltip: l10n.customersAdd,
         child: const Icon(Icons.add),
       ),
     );
@@ -271,6 +275,7 @@ class _CustomerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
     return Card(
@@ -321,12 +326,12 @@ class _CustomerCard extends StatelessWidget {
                             if (value == 'edit') onEdit();
                             if (value == 'delete') onDelete();
                           },
-                          itemBuilder: (context) => const [
+                          itemBuilder: (context) => [
                             PopupMenuItem(
                               value: 'edit',
                               child: ListTile(
                                 leading: Icon(Icons.edit_outlined),
-                                title: Text('تعديل'),
+                                title: Text(l10n.commonEdit),
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
@@ -334,7 +339,7 @@ class _CustomerCard extends StatelessWidget {
                               value: 'delete',
                               child: ListTile(
                                 leading: Icon(Icons.delete_outline),
-                                title: Text('حذف'),
+                                title: Text(l10n.commonDelete),
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
@@ -365,9 +370,9 @@ class _CustomerCard extends StatelessWidget {
                             label: customer.address!,
                           ),
                         if (!customer.isActive)
-                          const _InfoChip(
+                          _InfoChip(
                             icon: Icons.visibility_off_outlined,
-                            label: 'غير نشط',
+                            label: l10n.customersInactive,
                           ),
                       ],
                     ),
@@ -386,22 +391,16 @@ class _InfoChip extends StatelessWidget {
   const _InfoChip({
     required this.icon,
     required this.label,
-    this.emphasize = false,
   });
 
   final IconData icon;
   final String label;
-  final bool emphasize;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final Color background = emphasize
-        ? theme.colorScheme.errorContainer
-        : theme.colorScheme.secondaryContainer;
-    final Color foreground = emphasize
-        ? theme.colorScheme.onErrorContainer
-        : theme.colorScheme.onSecondaryContainer;
+    final Color background = theme.colorScheme.secondaryContainer;
+    final Color foreground = theme.colorScheme.onSecondaryContainer;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -448,6 +447,7 @@ class _CustomersErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final mediaQuery = MediaQuery.of(context);
     final bool isWide = mediaQuery.size.width >= 600;
@@ -467,7 +467,7 @@ class _CustomersErrorState extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'حدث خطأ أثناء تحميل العملاء',
+                l10n.customersLoadError,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -484,7 +484,7 @@ class _CustomersErrorState extends StatelessWidget {
               const SizedBox(height: 16),
               FilledButton.tonal(
                 onPressed: onRetry,
-                child: const Text('إعادة المحاولة'),
+                child: Text(l10n.commonRetry),
               ),
             ],
           ),
@@ -502,6 +502,7 @@ class _CustomersEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final mediaQuery = MediaQuery.of(context);
     final bool isWide = mediaQuery.size.width >= 600;
@@ -528,7 +529,7 @@ class _CustomersEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                isSearch ? 'لا توجد نتائج مطابقة' : 'لا يوجد عملاء بعد',
+                isSearch ? l10n.customersNoResults : l10n.customersEmpty,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -537,8 +538,8 @@ class _CustomersEmptyState extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 isSearch
-                    ? 'جرّب كلمة بحث مختلفة أو تحقق من الإملاء.'
-                    : 'ابدأ بإضافة أول عميل لديك عبر زر الإضافة أسفل الشاشة.',
+                    ? l10n.customersSearchEmptyHint
+                    : l10n.customersEmptyHint,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -599,23 +600,26 @@ class _CustomerFormSheetState extends ConsumerState<_CustomerFormSheet> {
     super.dispose();
   }
 
-  String? _requiredValidator(String? value) {
+  String? _requiredValidator(BuildContext context, String? value) {
+    final l10n = AppLocalizations.of(context);
     if (value == null || value.trim().isEmpty) {
-      return 'هذا الحقل مطلوب';
+      return l10n.commonRequiredField;
     }
     return null;
   }
 
-  String? _emailValidator(String? value) {
+  String? _emailValidator(BuildContext context, String? value) {
+    final l10n = AppLocalizations.of(context);
     if (value == null || value.trim().isEmpty) return null;
     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!emailRegex.hasMatch(value.trim())) {
-      return 'بريد إلكتروني غير صالح';
+      return l10n.commonInvalidEmail;
     }
     return null;
   }
 
   Future<void> _save() async {
+    final l10n = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
@@ -672,7 +676,7 @@ class _CustomerFormSheetState extends ConsumerState<_CustomerFormSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل حفظ العميل: $e')),
+          SnackBar(content: Text(l10n.customersSaveFailed(e))),
         );
       }
     } finally {
@@ -682,6 +686,7 @@ class _CustomerFormSheetState extends ConsumerState<_CustomerFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final mediaQuery = MediaQuery.of(context);
     final bool isWide = mediaQuery.size.width >= 600;
 
@@ -702,50 +707,50 @@ class _CustomerFormSheetState extends ConsumerState<_CustomerFormSheet> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    widget.isEditing ? 'تعديل عميل' : 'إضافة عميل',
+                    widget.isEditing ? l10n.customersEdit : l10n.customersAdd,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _fullNameController,
-                    decoration: const InputDecoration(labelText: 'الاسم الكامل'),
-                    validator: _requiredValidator,
+                    decoration: InputDecoration(labelText: l10n.authFullName),
+                    validator: (value) => _requiredValidator(context, value),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(labelText: 'رقم الهاتف'),
+                    decoration: InputDecoration(labelText: l10n.customersPhone),
                     keyboardType: TextInputType.phone,
-                    validator: _requiredValidator,
+                    validator: (value) => _requiredValidator(context, value),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'البريد الإلكتروني (اختياري)',
+                    decoration: InputDecoration(
+                      labelText: l10n.customersEmailOptional,
                     ),
                     keyboardType: TextInputType.emailAddress,
-                    validator: _emailValidator,
+                    validator: (value) => _emailValidator(context, value),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _addressController,
-                    decoration: const InputDecoration(
-                      labelText: 'العنوان (اختياري)',
+                    decoration: InputDecoration(
+                      labelText: l10n.customersAddressOptional,
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _notesController,
-                    decoration: const InputDecoration(
-                      labelText: 'ملاحظات (اختياري)',
+                    decoration: InputDecoration(
+                      labelText: l10n.customersNotesOptional,
                     ),
                     maxLines: 3,
                   ),
                   const SizedBox(height: 4),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('عميل نشط'),
+                    title: Text(l10n.customersActive),
                     value: _isActive,
                     onChanged: (value) => setState(() => _isActive = value),
                   ),
@@ -759,7 +764,7 @@ class _CustomerFormSheetState extends ConsumerState<_CustomerFormSheet> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(
-                            widget.isEditing ? 'حفظ التعديلات' : 'إضافة العميل',
+                            widget.isEditing ? l10n.commonSave : l10n.customersAddAction,
                           ),
                   ),
                   const SizedBox(height: 8),

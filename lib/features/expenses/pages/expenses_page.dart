@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 class ExpensesPage extends StatelessWidget {
   const ExpensesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
       body: Center(
-        child: Text('Expenses'),
+        child: Text(l10n.pageExpenses),
       ),
     );
   }

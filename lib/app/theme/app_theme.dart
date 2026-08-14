@@ -1,21 +1,30 @@
 import 'package:flutter/material.dart';
 
+/// نظام الألوان والمظهر الموحّد للتطبيق (Material 3)، بنسختين: فاتح وداكن،
+/// مبنيتين من نفس لون الهوية الأساسي [_seedColor] عبر [ColorScheme.fromSeed].
+///
+/// لم يتغيّر لون الهوية (#315052) بين الوضعين: يكفي تمرير brightness مختلف
+/// إلى [ColorScheme.fromSeed] ليُنتج Material 3 تلقائياً لوحة ألوان داكنة
+/// متناسقة (أسطح وخلفيات داكنة مع تباين مناسب) من نفس اللون الأساسي، دون
+/// حاجة لتعديل يدوي للّون نفسه.
 class AppTheme {
   AppTheme._();
 
   static const Color _seedColor = Color(0xFF315052);
   static const double _radius = 12.0;
 
-  static final ThemeData light = _buildTheme();
+  static final ThemeData light = _buildTheme(Brightness.light);
+  static final ThemeData dark = _buildTheme(Brightness.dark);
 
-  static ThemeData _buildTheme() {
+  static ThemeData _buildTheme(Brightness brightness) {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: _seedColor,
-      brightness: Brightness.light,
+      brightness: brightness,
     );
 
     return ThemeData(
       useMaterial3: true,
+      brightness: brightness,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: colorScheme.surface,
       visualDensity: VisualDensity.standard,
