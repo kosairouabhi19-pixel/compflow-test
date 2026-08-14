@@ -23,10 +23,11 @@ class AuthState {
     bool? isLoading,
     AppUserModel? user,
     String? errorMessage,
+    bool clearUser = false,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
-      user: user ?? this.user,
+      user: clearUser ? null : (user ?? this.user),
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
