@@ -9,7 +9,7 @@ class AuthState {
 
   factory AuthState.initial() {
     return const AuthState(
-      isLoading: false,
+      isLoading: true,
       user: null,
       errorMessage: null,
     );
