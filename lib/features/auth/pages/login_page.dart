@@ -8,6 +8,7 @@ import '../providers/auth_state.dart';
 import '../widgets/auth_error_text.dart';
 import '../widgets/auth_submit_button.dart';
 import '../widgets/auth_text_field.dart';
+import 'package:go_router/go_router.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -121,12 +122,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        context.go('/forgot-password');
+                      },
                       child: Text(l10n.authForgotPassword),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(l10n.authCreateAccount),
                     ),
                   ],
                 ),

@@ -4,55 +4,60 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/pages/forgot_password_page.dart';
 import '../../features/auth/pages/login_page.dart';
 import '../../features/auth/pages/register_page.dart';
-import '../../features/splash/pages/splash_page.dart';
-import '../../features/products/pages/products_page.dart';
-import '../../shared/layouts/main_layout.dart';
-
-class AppRoutes {
-  AppRoutes._();
-
-  static const splash = '/';
-  static const login = '/login';
-  static const register = '/register';
-  static const forgotPassword = '/forgot-password';
-}
+import '../../features/auth/providers/auth_providers.dart';
+import '../../features/auth/providers/auth_state.dart';
+import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
-    initialLocation: AppRoutes.splash,
+  final router = GoRouter(
+    initialLocation: '/login',
     routes: [
       GoRoute(
-        path: AppRoutes.splash,
-        name: 'splash',
-        builder: (context, state) => const SplashPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.login,
-        name: 'login',
+        path: '/login',
         builder: (context, state) => const LoginPage(),
       ),
       GoRoute(
-        path: AppRoutes.register,
-        name: 'register',
+        path: '/register',
         builder: (context, state) => const RegisterPage(),
       ),
       GoRoute(
-        path: AppRoutes.forgotPassword,
-        name: 'forgotPassword',
+        path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordPage(),
       ),
       GoRoute(
-        path: '/products',
-        builder: (context, state) => const ProductsPage(),
-      ),
-      GoRoute(
         path: '/home',
-        builder: (context, state) => const MainLayout(),
-      ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const MainLayout(),
+        builder: (context, state) => const DashboardPage(),
       ),
     ],
   );
+
+  ref.listen<AuthState?>(
+    authControllerProvider,
+    (previous, next) {
+      if (next == null || next.isLoading) {
+        return;
+      }
+
+      final location =
+          router.routerDelegate.currentConfiguration.uri.path;
+
+      final isAuthPage =
+          location == '/login' ||
+          location == '/register' ||
+          location == '/forgot-password';
+
+      if (next.user == null) {
+        if (!isAuthPage) {
+          router.go('/login');
+        }
+        return;
+      }
+
+      if (isAuthPage) {
+        router.go('/home');
+      }
+    },
+  );
+
+  return router;
 });

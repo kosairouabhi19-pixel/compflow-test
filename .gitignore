@@ -11,3 +11,7 @@ build/
 
 android/.gradle/
 android/local.properties
+
+.dart_tool/
+build/
+CompFlow.zip

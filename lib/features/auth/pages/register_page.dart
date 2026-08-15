@@ -32,14 +32,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     super.dispose();
   }
 
-  void _handleRegister() {
-    if (_formKey.currentState?.validate() ?? false) {
-      ref.read(authControllerProvider.notifier).register(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-    }
+void _handleRegister() {
+  if (_formKey.currentState?.validate() ?? false) {
+    ref.read(authControllerProvider.notifier).register(
+      fullName: _fullNameController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {

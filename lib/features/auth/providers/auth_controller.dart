@@ -10,16 +10,46 @@ class AuthController extends StateNotifier<AuthState> {
       : _authRepository = authRepository,
         super(AuthState.initial()) {
     _authSubscription = _authRepository.authStateChanges().listen(
-      (user) {
-        state = state.copyWith(
-          isLoading: false,
-          user: user,
-          errorMessage: null,
-        );
+      (firebaseUser) async {
+        if (firebaseUser == null) {
+          state = state.copyWith(
+            isLoading: false,
+            clearUser: true,
+            errorMessage: null,
+          );
+          return;
+        }
+
+        try {
+          final appUser =
+              await _authRepository.getCurrentUserProfile();
+
+          if (appUser == null) {
+            state = state.copyWith(
+              isLoading: false,
+              clearUser: true,
+              errorMessage: 'User profile not found.',
+            );
+            return;
+          }
+
+          state = state.copyWith(
+            isLoading: false,
+            user: appUser,
+            errorMessage: null,
+          );
+        } catch (e) {
+          state = state.copyWith(
+            isLoading: false,
+            clearUser: true,
+            errorMessage: e.toString(),
+          );
+        }
       },
       onError: (Object error) {
         state = state.copyWith(
           isLoading: false,
+          clearUser: true,
           errorMessage: error.toString(),
         );
       },
@@ -44,19 +74,33 @@ class AuthController extends StateNotifier<AuthState> {
         password: password,
       );
 
+      final appUser = await _authRepository.getCurrentUserProfile();
+
+      if (appUser == null) {
+        state = state.copyWith(
+          isLoading: false,
+          clearUser: true,
+          errorMessage: 'User profile not found.',
+        );
+        return;
+      }
+
       state = state.copyWith(
         isLoading: false,
+        user: appUser,
         errorMessage: null,
       );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
+        clearUser: true,
         errorMessage: e.toString(),
       );
     }
   }
 
   Future<void> register({
+    required String fullName,
     required String email,
     required String password,
   }) async {
@@ -67,13 +111,9 @@ class AuthController extends StateNotifier<AuthState> {
 
     try {
       await _authRepository.register(
+        fullName: fullName,
         email: email,
         password: password,
-      );
-
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: null,
       );
     } catch (e) {
       state = state.copyWith(
