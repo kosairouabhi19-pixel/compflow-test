@@ -32,19 +32,18 @@ class UsersRepository {
         );
   }
 
-  Future<void> createUser(UserModel user) {
+  // Creates the profile when it does not exist and replaces it when it does.
+  // The Firestore rules decide whether the current user is allowed to do so.
+  Future<void> saveUser(UserModel user) {
     return _firestore
         .collection('users')
         .doc(user.uid)
         .set(user.toFirestore());
   }
 
-  Future<void> updateUser(UserModel user) {
-    return _firestore
-        .collection('users')
-        .doc(user.uid)
-        .update(user.toFirestore());
-  }
+  Future<void> createUser(UserModel user) => saveUser(user);
+
+  Future<void> updateUser(UserModel user) => saveUser(user);
 
   Future<void> deleteUser(String uid) {
     return _firestore
