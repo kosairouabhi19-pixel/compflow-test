@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/auth/providers/auth_providers.dart';
 import '../../l10n/app_localizations.dart';
 
-class AppSidebar extends StatelessWidget {
+class AppSidebar extends ConsumerWidget {
   final int selectedIndex;
   final Function(int) onSelect;
 
@@ -13,10 +15,11 @@ class AppSidebar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final currentUser = ref.watch(authControllerProvider).user;
 
     final items = [
       (
@@ -44,6 +47,13 @@ class AppSidebar extends StatelessWidget {
         l10n.navSettings,
       ),
     ];
+
+    final displayName = currentUser?.fullName.trim().isNotEmpty == true
+        ? currentUser!.fullName.trim()
+        : currentUser?.email ?? l10n.navUsers;
+    final displayRole = currentUser?.role.trim().isNotEmpty == true
+        ? currentUser!.role
+        : null;
 
     return Container(
       width: 240,
@@ -168,12 +178,28 @@ class AppSidebar extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        l10n.navUsers,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            displayName,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (displayRole != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              displayRole,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
