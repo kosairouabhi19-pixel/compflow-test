@@ -21,14 +21,24 @@ class AuthController extends StateNotifier<AuthState> {
         }
 
         try {
-          final appUser =
-              await _authRepository.getCurrentUserProfile();
+          final appUser = await _authRepository.getCurrentUserProfile();
 
           if (appUser == null) {
+            await _authRepository.signOut();
             state = state.copyWith(
               isLoading: false,
               clearUser: true,
-              errorMessage: 'User profile not found.',
+              errorMessage: null,
+            );
+            return;
+          }
+
+          if (!appUser.isActive) {
+            await _authRepository.signOut();
+            state = state.copyWith(
+              isLoading: false,
+              clearUser: true,
+              errorMessage: 'This account is inactive.',
             );
             return;
           }
@@ -77,10 +87,21 @@ class AuthController extends StateNotifier<AuthState> {
       final appUser = await _authRepository.getCurrentUserProfile();
 
       if (appUser == null) {
+        await _authRepository.signOut();
         state = state.copyWith(
           isLoading: false,
           clearUser: true,
-          errorMessage: 'User profile not found.',
+          errorMessage: 'User profile not found. Please register through the app.',
+        );
+        return;
+      }
+
+      if (!appUser.isActive) {
+        await _authRepository.signOut();
+        state = state.copyWith(
+          isLoading: false,
+          clearUser: true,
+          errorMessage: 'This account is inactive.',
         );
         return;
       }
@@ -132,40 +153,21 @@ class AuthController extends StateNotifier<AuthState> {
     );
 
     try {
-      await _authRepository.resetPassword(
-        email: email,
-      );
-
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: null,
-      );
+      await _authRepository.resetPassword(email: email);
+      state = state.copyWith(isLoading: false, errorMessage: null);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
 
   Future<void> signOut() async {
-    state = state.copyWith(
-      isLoading: true,
-      errorMessage: null,
-    );
+    state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
       await _authRepository.signOut();
-
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: null,
-      );
+      state = state.copyWith(isLoading: false, errorMessage: null);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
 
