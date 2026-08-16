@@ -5,7 +5,7 @@ import '../../features/auth/pages/forgot_password_page.dart';
 import '../../features/auth/pages/login_page.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../features/auth/providers/auth_state.dart';
-import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../../shared/layouts/main_layout.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -21,7 +21,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/home',
-        builder: (context, state) => const DashboardPage(),
+        builder: (context, state) => const MainLayout(),
       ),
     ],
   );
