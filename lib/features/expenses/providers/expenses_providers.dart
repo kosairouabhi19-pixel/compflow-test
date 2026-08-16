@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../products/providers/products_providers.dart';
+import '../../../core/database/database_provider.dart';
 import '../database/expenses_dao.dart';
 import '../repositories/expenses_repository.dart';
 
