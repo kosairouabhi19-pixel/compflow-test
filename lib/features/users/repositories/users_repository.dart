@@ -32,6 +32,13 @@ class UsersRepository {
         );
   }
 
+  Future<void> createUser(UserModel user) {
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .set(user.toFirestore());
+  }
+
   Future<void> updateUser(UserModel user) {
     return _firestore
         .collection('users')
