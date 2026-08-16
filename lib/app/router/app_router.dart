@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/pages/forgot_password_page.dart';
 import '../../features/auth/pages/login_page.dart';
-import '../../features/auth/pages/register_page.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../features/auth/providers/auth_state.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
@@ -15,10 +14,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginPage(),
-      ),
-      GoRoute(
-        path: '/register',
-        builder: (context, state) => const RegisterPage(),
       ),
       GoRoute(
         path: '/forgot-password',
@@ -43,7 +38,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final isAuthPage =
           location == '/login' ||
-          location == '/register' ||
           location == '/forgot-password';
 
       if (next.user == null) {
