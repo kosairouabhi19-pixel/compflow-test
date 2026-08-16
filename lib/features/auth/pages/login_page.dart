@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../l10n/app_localizations.dart';
 
@@ -8,7 +9,6 @@ import '../providers/auth_state.dart';
 import '../widgets/auth_error_text.dart';
 import '../widgets/auth_submit_button.dart';
 import '../widgets/auth_text_field.dart';
-import 'package:go_router/go_router.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -121,6 +121,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       onPressed: _handleSignIn,
                     ),
                     const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () {
+                        context.go('/register');
+                      },
+                      child: const Text('إنشاء حساب جديد'),
+                    ),
                     TextButton(
                       onPressed: () {
                         context.go('/forgot-password');
