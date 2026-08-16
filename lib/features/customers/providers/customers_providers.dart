@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/database/app_database.dart';
 import '../../../core/database/database_provider.dart';
 import '../database/customers_dao.dart';
 import '../repositories/customers_repository.dart';
