@@ -3,20 +3,59 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /users/{userId} {
-      allow read: if request.auth != null
-                  && request.auth.uid == userId;
+    function signedIn() {
+      return request.auth != null;
+    }
 
-      allow create: if request.auth != null
-                    && request.auth.uid == userId
-                    && request.resource.data.tenantId == userId
-                    && request.resource.data.role == 'owner'
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isOwner() {
+      return signedIn()
+          && currentUser().data.role == 'owner'
+          && currentUser().data.isActive == true;
+    }
+
+    function ownerTenantId() {
+      return currentUser().data.tenantId;
+    }
+
+    match /users/{userId} {
+      // A user can read their own profile. The store owner can read
+      // profiles belonging to the same tenant.
+      allow read: if signedIn()
+                  && (
+                    request.auth.uid == userId
+                    || (isOwner() && resource.data.tenantId == ownerTenantId())
+                  );
+
+      // The owner can create employee profiles for their own tenant.
+      // This creates the Firestore profile; Firebase Authentication
+      // credentials are handled separately by the backend flow.
+      allow create: if isOwner()
+                    && request.resource.data.tenantId == ownerTenantId()
+                    && request.resource.data.role in ['admin', 'manager', 'cashier']
                     && request.resource.data.isActive == true;
 
-      allow update: if request.auth != null
-                    && request.auth.uid == userId;
+      // The owner can edit users in their tenant. A user may update
+      // their own profile without changing its tenant or role.
+      allow update: if (
+                      isOwner()
+                      && resource.data.tenantId == ownerTenantId()
+                      && request.resource.data.tenantId == ownerTenantId()
+                      && request.resource.data.role in ['admin', 'manager', 'cashier', 'owner']
+                    )
+                    || (
+                      signedIn()
+                      && request.auth.uid == userId
+                      && request.resource.data.tenantId == resource.data.tenantId
+                    );
 
-      allow delete: if false;
+      // Only the owner can remove another user from the tenant.
+      allow delete: if isOwner()
+                    && request.auth.uid != userId
+                    && resource.data.tenantId == ownerTenantId();
     }
 
     match /{document=**} {
