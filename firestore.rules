@@ -22,24 +22,17 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // A user can read their own profile. The store owner can read
-      // profiles belonging to the same tenant.
       allow read: if signedIn()
                   && (
                     request.auth.uid == userId
                     || (isOwner() && resource.data.tenantId == ownerTenantId())
                   );
 
-      // The owner can create employee profiles for their own tenant.
-      // This creates the Firestore profile; Firebase Authentication
-      // credentials are handled separately by the backend flow.
       allow create: if isOwner()
                     && request.resource.data.tenantId == ownerTenantId()
                     && request.resource.data.role in ['admin', 'manager', 'cashier']
                     && request.resource.data.isActive == true;
 
-      // The owner can edit users in their tenant. A user may update
-      // their own profile without changing its tenant or role.
       allow update: if (
                       isOwner()
                       && resource.data.tenantId == ownerTenantId()
@@ -52,10 +45,33 @@ service cloud.firestore {
                       && request.resource.data.tenantId == resource.data.tenantId
                     );
 
-      // Only the owner can remove another user from the tenant.
       allow delete: if isOwner()
                     && request.auth.uid != userId
                     && resource.data.tenantId == ownerTenantId();
+
+      match /sessions/{deviceId} {
+        // A user can see their own sessions. The owner can also inspect
+        // sessions belonging to employees in the same tenant.
+        allow read: if signedIn()
+                    && (
+                      request.auth.uid == userId
+                      || (isOwner() &&
+                          get(/databases/$(database)/documents/users/$(userId)).data.tenantId == ownerTenantId())
+                    );
+
+        // Session writes are limited to the authenticated account itself.
+        // The app uses these documents to enforce the MVP device limit.
+        allow create, update: if signedIn() && request.auth.uid == userId;
+
+        // The user can release their own session. The owner can also force
+        // a session logout for an employee in the same tenant.
+        allow delete: if signedIn()
+                      && (
+                        request.auth.uid == userId
+                        || (isOwner() &&
+                            get(/databases/$(database)/documents/users/$(userId)).data.tenantId == ownerTenantId())
+                      );
+      }
     }
 
     match /{document=**} {
