@@ -6,27 +6,27 @@ class InvoicesRepository {
 
   InvoicesRepository(this._dao);
 
-  Stream<List<Invoice>> watchAllInvoices() {
-    return _dao.watchAllInvoices();
+  Stream<List<Invoice>> watchAllInvoices(String tenantId) {
+    return _dao.watchAllInvoices(tenantId);
   }
 
-  Future<List<Invoice>> getAllInvoices() {
-    return _dao.getAllInvoices();
+  Future<List<Invoice>> getAllInvoices(String tenantId) {
+    return _dao.getAllInvoices(tenantId);
   }
 
-  Future<Invoice?> getInvoiceById(String id) {
-    return _dao.getInvoiceById(id);
+  Future<Invoice?> getInvoiceById(String id, String tenantId) {
+    return _dao.getInvoiceById(id, tenantId);
   }
 
-  Future<int> insertInvoice(InvoicesCompanion invoice) {
-    return _dao.insertInvoice(invoice);
+  Future<int> insertInvoice(InvoicesCompanion invoice, String tenantId) {
+    return _dao.insertInvoice(invoice, tenantId);
   }
 
-  Future<bool> updateInvoice(Invoice invoice) {
-    return _dao.updateInvoice(invoice);
+  Future<bool> updateInvoice(Invoice invoice, String tenantId) {
+    return _dao.updateInvoice(invoice, tenantId);
   }
 
-  Future<int> deleteInvoice(String id) {
-    return _dao.deleteInvoice(id);
+  Future<int> deleteInvoice(String id, String tenantId) {
+    return _dao.deleteInvoice(id, tenantId);
   }
 }
