@@ -8,36 +8,59 @@ part 'products_dao.g.dart';
 @DriftAccessor(tables: [Products])
 class ProductsDao extends DatabaseAccessor<AppDatabase>
     with _$ProductsDaoMixin {
-  ProductsDao(super.db);
+  ProductsDao(super.db, this.tenantId);
+
+  final String tenantId;
 
   Future<List<Product>> getAllProducts() {
-    return select(products).get();
+    return (select(products)
+          ..where((t) => t.tenantId.equals(tenantId) & t.deletedAt.isNull()))
+        .get();
   }
 
   Stream<List<Product>> watchAllProducts() {
-    return select(products).watch();
+    return (select(products)
+          ..where((t) => t.tenantId.equals(tenantId) & t.deletedAt.isNull()))
+        .watch();
   }
 
   Future<Product?> getProductById(String id) {
-    return (select(products)..where((t) => t.id.equals(id)))
+    return (select(products)
+          ..where((t) =>
+              t.id.equals(id) &
+              t.tenantId.equals(tenantId) &
+              t.deletedAt.isNull()))
         .getSingleOrNull();
   }
 
   Future<int> insertProduct(ProductsCompanion product) {
-    return into(products).insert(product);
+    return into(products).insert(product.copyWith(tenantId: Value(tenantId)));
   }
 
   Future<bool> updateProduct(Product product) {
-    return update(products).replace(product);
+    if (product.tenantId != tenantId || product.deletedAt != null) {
+      return Future.value(false);
+    }
+    return (update(products)
+          ..where((t) => t.id.equals(product.id) & t.tenantId.equals(tenantId)))
+        .write(product);
   }
 
   Future<int> softDeleteProduct(String id) {
-    return (delete(products)..where((t) => t.id.equals(id))).go();
+    return (update(products)
+          ..where((t) => t.id.equals(id) & t.tenantId.equals(tenantId)))
+        .write(ProductsCompanion(
+          deletedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTime.now()),
+        ));
   }
 
   Future<List<Product>> searchProducts(String query) {
     return (select(products)
-          ..where((t) => t.name.like('%$query%')))
+          ..where((t) =>
+              t.tenantId.equals(tenantId) &
+              t.deletedAt.isNull() &
+              t.name.like('%$query%')))
         .get();
   }
 
@@ -47,16 +70,13 @@ class ProductsDao extends DatabaseAccessor<AppDatabase>
   ) async {
     final product = await getProductById(productId);
 
-    if (product == null) {
-      return false;
-    }
-
-    if (product.quantity < quantity) {
+    if (product == null || product.quantity < quantity) {
       return false;
     }
 
     final updated = product.copyWith(
       quantity: product.quantity - quantity,
+      updatedAt: DateTime.now(),
     );
 
     return updateProduct(updated);
