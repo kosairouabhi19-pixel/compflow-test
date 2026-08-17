@@ -616,3 +616,87 @@ class _RecentSalesSection extends StatelessWidget {
     );
   }
 }
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.title, required this.icon, required this.child, this.iconColor});
+  final String title;
+  final IconData icon;
+  final Widget child;
+  final Color? iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: iconColor ?? colors.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyText extends StatelessWidget {
+  const _EmptyText({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Text(text, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+    );
+  }
+}
+
+class _DashboardErrorState extends StatelessWidget {
+  const _DashboardErrorState({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colors = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 52, color: colors.error),
+            const SizedBox(height: 16),
+            Text(l10n.dashboardErrorTitle),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center, style: TextStyle(color: colors.onSurfaceVariant)),
+            const SizedBox(height: 16),
+            FilledButton.tonal(onPressed: onRetry, child: Text(l10n.commonRetry)),
+          ],
+        ),
+      ),
+    );
+  }
+}
