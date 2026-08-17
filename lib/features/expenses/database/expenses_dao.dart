@@ -8,21 +8,58 @@ part 'expenses_dao.g.dart';
 @DriftAccessor(tables: [Expenses])
 class ExpensesDao extends DatabaseAccessor<AppDatabase>
     with _$ExpensesDaoMixin {
-  ExpensesDao(super.db);
+  ExpensesDao(super.db, this.tenantId);
 
-  Future<List<Expense>> getAllExpenses() => select(expenses).get();
+  final String tenantId;
 
-  Stream<List<Expense>> watchAllExpenses() => select(expenses).watch();
+  Future<List<Expense>> getAllExpenses() {
+    return (select(expenses)
+          ..where((t) => t.tenantId.equals(tenantId) & t.deletedAt.isNull()))
+        .get();
+  }
 
-  Future<Expense?> getExpenseById(String id) =>
-      (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<List<Expense>> watchAllExpenses() {
+    return (select(expenses)
+          ..where((t) => t.tenantId.equals(tenantId) & t.deletedAt.isNull()))
+        .watch();
+  }
 
-  Future<int> insertExpense(ExpensesCompanion expense) =>
-      into(expenses).insert(expense);
+  Future<Expense?> getExpenseById(String id) {
+    return (select(expenses)
+          ..where((t) => t.id.equals(id) & t.tenantId.equals(tenantId) & t.deletedAt.isNull()))
+        .getSingleOrNull();
+  }
 
-  Future<bool> updateExpense(Expense expense) =>
-      update(expenses).replace(expense);
+  Future<int> insertExpense(ExpensesCompanion expense) {
+    return into(expenses).insert(expense.copyWith(tenantId: Value(tenantId)));
+  }
 
-  Future<int> deleteExpense(String id) =>
-      (delete(expenses)..where((t) => t.id.equals(id))).go();
+  Future<bool> updateExpense(Expense expense) {
+    if (expense.tenantId != tenantId || expense.deletedAt != null) {
+      return Future.value(false);
+    }
+    return (update(expenses)
+          ..where((t) => t.id.equals(expense.id) & t.tenantId.equals(tenantId)))
+        .write(expense);
+  }
+
+  Future<int> deleteExpense(String id) {
+    return (update(expenses)
+          ..where((t) => t.id.equals(id) & t.tenantId.equals(tenantId)))
+        .write(ExpensesCompanion(
+          deletedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTime.now()),
+        ));
+  }
+
+  Future<List<Expense>> searchExpenses(String query) {
+    return (select(expenses)
+          ..where((t) =>
+              t.tenantId.equals(tenantId) &
+              t.deletedAt.isNull() &
+              (t.title.like('%$query%') |
+                  t.category.like('%$query%') |
+                  t.notes.like('%$query%'))))
+        .get();
+  }
 }
