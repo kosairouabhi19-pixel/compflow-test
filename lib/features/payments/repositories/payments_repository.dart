@@ -6,18 +6,21 @@ class PaymentsRepository {
 
   PaymentsRepository(this._dao);
 
-  Stream<List<Payment>> watchAllPayments() => _dao.watchAllPayments();
+  Stream<List<Payment>> watchAllPayments(String tenantId) =>
+      _dao.watchAllPayments(tenantId);
 
-  Future<List<Payment>> getAllPayments() => _dao.getAllPayments();
+  Future<List<Payment>> getAllPayments(String tenantId) =>
+      _dao.getAllPayments(tenantId);
 
-  Future<Payment?> getPaymentById(String id) => _dao.getPaymentById(id);
+  Future<Payment?> getPaymentById(String id, String tenantId) =>
+      _dao.getPaymentById(id, tenantId);
 
-  Future<int> insertPayment(PaymentsCompanion payment) =>
-      _dao.insertPayment(payment);
+  Future<int> insertPayment(PaymentsCompanion payment, String tenantId) =>
+      _dao.insertPayment(payment, tenantId);
 
-  Future<bool> updatePayment(Payment payment) =>
-      _dao.updatePayment(payment);
+  Future<bool> updatePayment(Payment payment, String tenantId) =>
+      _dao.updatePayment(payment, tenantId);
 
-  Future<int> deletePayment(String id) =>
-      _dao.deletePayment(id);
+  Future<int> deletePayment(String id, String tenantId) =>
+      _dao.deletePayment(id, tenantId);
 }
