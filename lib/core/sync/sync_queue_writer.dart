@@ -24,4 +24,19 @@ class SyncQueueWriter {
       payload: payload,
     );
   }
+
+  Future<void> enqueueDelete({
+    required String tenantId,
+    required String entityType,
+    required String entityId,
+  }) {
+    return SyncQueueRepository(db).enqueue(
+      id: _uuid.v4(),
+      tenantId: tenantId,
+      entityType: entityType,
+      entityId: entityId,
+      operationType: 'delete',
+      payload: const {},
+    );
+  }
 }
