@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../database/app_database.dart';
 import '../network/connectivity_service.dart';
+import 'firestore_remote_sync.dart';
 import 'firestore_sync_adapter.dart';
 import 'sync_engine.dart';
 
@@ -40,6 +41,18 @@ class SyncBootstrap {
       processor: adapter.process,
     );
     await engine.start();
+  }
+
+  Future<void> pullTenant(String tenantId) async {
+    final database = _database;
+    if (database == null) {
+      await start();
+    }
+
+    await FirestoreRemoteSync(
+      database: _database!,
+      firestore: FirebaseFirestore.instance,
+    ).pullTenant(tenantId);
   }
 
   Future<void> stop() async {
