@@ -9,6 +9,8 @@ class SyncQueueRepository {
 
   final AppDatabase _database;
 
+  static const int maxRetryCount = 8;
+
   Future<void> enqueue({
     required String id,
     required String tenantId,
@@ -46,10 +48,14 @@ class SyncQueueRepository {
              payload, status, retry_count, created_at, updated_at, last_error
       FROM sync_queue_table
       WHERE status IN ('pending', 'failed')
+        AND retry_count < ?
       ORDER BY created_at ASC
       LIMIT ?
       ''',
-      variables: [Variable.withInt(limit)],
+      variables: [
+        Variable.withInt(maxRetryCount),
+        Variable.withInt(limit),
+      ],
     ).get();
 
     return rows.map(SyncQueueItem.fromRow).toList();
@@ -99,7 +105,9 @@ class SyncQueueRepository {
       SELECT COUNT(*) AS count
       FROM sync_queue_table
       WHERE status IN ('pending', 'failed')
+        AND retry_count < ?
       ''',
+      variables: [Variable.withInt(maxRetryCount)],
     ).getSingle();
 
     return row.read<int>('count');
