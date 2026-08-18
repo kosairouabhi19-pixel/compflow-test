@@ -10,6 +10,8 @@ class SyncQueueRepository {
   final AppDatabase _database;
 
   static const int maxRetryCount = 8;
+  static const int _baseRetryDelaySeconds = 30;
+  static const int _maxRetryDelaySeconds = 30 * 60;
 
   Future<void> enqueue({
     required String id,
@@ -42,6 +44,7 @@ class SyncQueueRepository {
   }
 
   Future<List<SyncQueueItem>> getPending({int limit = 25}) async {
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     final rows = await _database.customSelect(
       '''
       SELECT id, tenant_id, entity_type, entity_id, operation_type,
@@ -49,16 +52,34 @@ class SyncQueueRepository {
       FROM sync_queue_table
       WHERE status IN ('pending', 'failed')
         AND retry_count < ?
+        AND (
+          status = 'pending'
+          OR updated_at <= ?
+        )
       ORDER BY created_at ASC
       LIMIT ?
       ''',
       variables: [
         Variable.withInt(maxRetryCount),
+        Variable.withInt(now),
         Variable.withInt(limit),
       ],
     ).get();
 
-    return rows.map(SyncQueueItem.fromRow).toList();
+    final items = rows.map(SyncQueueItem.fromRow).toList();
+    return items.where((item) {
+      if (item.status != 'failed') return true;
+      final delaySeconds = _retryDelaySeconds(item.retryCount);
+      return DateTime.now().toUtc().difference(item.updatedAt).inSeconds >=
+          delaySeconds;
+    }).toList();
+  }
+
+  int _retryDelaySeconds(int retryCount) {
+    if (retryCount <= 0) return _baseRetryDelaySeconds;
+    final exponent = retryCount - 1;
+    final delay = _baseRetryDelaySeconds * (1 << exponent);
+    return delay > _maxRetryDelaySeconds ? _maxRetryDelaySeconds : delay;
   }
 
   Future<void> markProcessing(String id) async {
