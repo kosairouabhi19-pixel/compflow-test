@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../../../core/sync/sync_bootstrap.dart';
 import '../repositories/auth_repository.dart';
 import '../services/device_session_service.dart';
 import 'auth_state.dart';
@@ -94,6 +95,15 @@ class AuthController extends StateNotifier<AuthState> {
         // A temporary network failure should not log the user out immediately.
       }
     });
+
+    // The user is authenticated and the tenant is known now, so it is safe to
+    // pull cloud changes into SQLite. This runs after session activation and
+    // never writes to the outbound sync queue.
+    try {
+      await SyncBootstrap.instance.pullTenant(appUser.tenantId);
+    } catch (_) {
+      // Local data remains usable if the remote pull is temporarily unavailable.
+    }
 
     state = state.copyWith(
       isLoading: false,
