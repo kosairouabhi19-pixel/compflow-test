@@ -2,10 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'sync_queue_repository.dart';
 
-/// Bridges the local persistent sync queue to Firestore.
-///
-/// Remote documents are always scoped below the tenant document:
-/// tenants/{tenantId}/{collection}/{entityId}
+/// Sends persistent local changes to Firestore under the authenticated tenant.
+/// Remote documents use: tenants/{tenantId}/{collection}/{entityId}
 class FirestoreSyncAdapter {
   FirestoreSyncAdapter({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
@@ -29,7 +27,6 @@ class FirestoreSyncAdapter {
     'payments': 'payments',
     'invoice': 'invoices',
     'invoices': 'invoices',
-    'inventory': 'inventory',
   };
 
   Future<void> process(SyncQueueItem item) async {
@@ -37,11 +34,9 @@ class FirestoreSyncAdapter {
     if (collection == null) {
       throw StateError('Unsupported sync entity type: ${item.entityType}');
     }
-
     if (item.tenantId.trim().isEmpty) {
       throw StateError('Cannot sync without a tenantId.');
     }
-
     if (item.entityId.trim().isEmpty) {
       throw StateError('Cannot sync without an entityId.');
     }
@@ -57,18 +52,13 @@ class FirestoreSyncAdapter {
       case 'insert':
       case 'update':
       case 'upsert':
-        await reference.set(
-          _sanitizeMap(item.payload),
-          SetOptions(merge: true),
-        );
+        await reference.set(_sanitizeMap(item.payload), SetOptions(merge: true));
         return;
       case 'delete':
         await reference.delete();
         return;
       default:
-        throw StateError(
-          'Unsupported sync operation type: ${item.operationType}',
-        );
+        throw StateError('Unsupported sync operation type: ${item.operationType}');
     }
   }
 
