@@ -39,16 +39,20 @@ service cloud.firestore {
                     && request.resource.data.role in ['admin', 'manager', 'cashier']
                     && request.resource.data.isActive == true;
 
+      // Owners can manage users inside their own tenant, but cannot create
+      // another owner or move a user to a different tenant.
       allow update: if (
                       isOwner()
                       && resource.data.tenantId == ownerTenantId()
                       && request.resource.data.tenantId == ownerTenantId()
-                      && request.resource.data.role in ['admin', 'manager', 'cashier', 'owner']
+                      && request.resource.data.role in ['admin', 'manager', 'cashier']
                     )
                     || (
                       signedIn()
                       && request.auth.uid == userId
                       && request.resource.data.tenantId == resource.data.tenantId
+                      && request.resource.data.role == resource.data.role
+                      && request.resource.data.isActive == resource.data.isActive
                     );
 
       allow delete: if isOwner()
