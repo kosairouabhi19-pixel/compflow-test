@@ -5,10 +5,8 @@ import '../database/app_database.dart';
 
 /// Pulls tenant-scoped Firestore data into the local Drift database.
 ///
-/// Remote writes are applied directly to SQLite and are deliberately marked
-/// as `synced`, so a remote change never creates a new local sync-queue item.
-/// A remote document only replaces a local row when it is newer by version,
-/// or by updatedAt when versions are unavailable.
+/// Remote writes are applied directly to SQLite and marked as `synced`, so a
+/// remote change never creates another local sync-queue item.
 class FirestoreRemotePullService {
   FirestoreRemotePullService({
     required AppDatabase database,
@@ -75,7 +73,6 @@ class FirestoreRemotePullService {
     if (local != null) {
       final localVersion = _asInt(local.data['version']);
       final localUpdatedAt = _asDateTime(local.data['updated_at']);
-
       if (_isLocalNewer(
         localVersion: localVersion,
         remoteVersion: remoteVersion,
@@ -92,7 +89,7 @@ class FirestoreRemotePullService {
 
     for (final field in fields) {
       placeholders.add('?');
-      values.add(_variableFor(field, data[field]));
+      values.add(_variableFor(field, data[_remoteKey(field)]));
     }
 
     final updates = fields
@@ -103,7 +100,8 @@ class FirestoreRemotePullService {
     await _database.customStatement(
       'INSERT INTO $collection (${fields.join(', ')}) '
       'VALUES (${placeholders.join(', ')}) '
-      'ON CONFLICT(id) DO UPDATE SET $updates',
+      'ON CONFLICT(id) DO UPDATE SET $updates '
+      'WHERE $collection.tenant_id = excluded.tenant_id',
       values,
     );
   }
@@ -138,16 +136,34 @@ class FirestoreRemotePullService {
     const extras = <String, List<String>>{
       'products': [
         'name', 'sku', 'barcode', 'purchase_price', 'selling_price',
-        'quantity', 'minimum_quantity', 'category_id', 'is_active'
+        'quantity', 'minimum_quantity', 'category_id', 'is_active',
       ],
-      'customers': ['full_name', 'phone', 'email', 'address', 'notes', 'is_active'],
-      'sales': ['customer_id', 'invoice_number', 'total', 'sale_date', 'notes'],
-      'sale_items': ['sale_id', 'product_id', 'quantity', 'unit_price', 'total'],
-      'purchases': ['supplier_id', 'invoice_number', 'total', 'purchase_date', 'notes'],
-      'expenses': ['title', 'amount', 'expense_date', 'category', 'notes'],
-      'payments': ['customer_id', 'amount', 'payment_date', 'payment_method', 'notes'],
-      'invoices': ['customer_id', 'invoice_number', 'total', 'paid', 'remaining', 'invoice_date', 'status'],
-      'inventory': ['product_id', 'quantity', 'reserved_quantity', 'minimum_quantity', 'warehouse'],
+      'customers': [
+        'full_name', 'phone', 'email', 'address', 'notes', 'is_active',
+      ],
+      'sales': [
+        'customer_id', 'invoice_number', 'total', 'sale_date', 'notes',
+      ],
+      'sale_items': [
+        'sale_id', 'product_id', 'quantity', 'unit_price', 'total',
+      ],
+      'purchases': [
+        'supplier_id', 'invoice_number', 'total', 'purchase_date', 'notes',
+      ],
+      'expenses': [
+        'title', 'amount', 'expense_date', 'category', 'notes',
+      ],
+      'payments': [
+        'customer_id', 'amount', 'payment_date', 'payment_method', 'notes',
+      ],
+      'invoices': [
+        'customer_id', 'invoice_number', 'total', 'paid', 'remaining',
+        'invoice_date', 'status',
+      ],
+      'inventory': [
+        'product_id', 'quantity', 'reserved_quantity', 'minimum_quantity',
+        'warehouse',
+      ],
     };
 
     final fields = extras[collection];
@@ -155,6 +171,39 @@ class FirestoreRemotePullService {
       throw StateError('Unsupported remote collection: $collection');
     }
     return [...base, ...fields];
+  }
+
+  String _remoteKey(String field) {
+    const keys = <String, String>{
+      'id': 'id',
+      'tenant_id': 'tenantId',
+      'created_at': 'createdAt',
+      'updated_at': 'updatedAt',
+      'deleted_at': 'deletedAt',
+      'version': 'version',
+      'sync_status': 'syncStatus',
+      'device_id': 'deviceId',
+      'purchase_price': 'purchasePrice',
+      'selling_price': 'sellingPrice',
+      'minimum_quantity': 'minimumQuantity',
+      'category_id': 'categoryId',
+      'is_active': 'isActive',
+      'full_name': 'fullName',
+      'customer_id': 'customerId',
+      'invoice_number': 'invoiceNumber',
+      'sale_date': 'saleDate',
+      'sale_id': 'saleId',
+      'product_id': 'productId',
+      'unit_price': 'unitPrice',
+      'supplier_id': 'supplierId',
+      'purchase_date': 'purchaseDate',
+      'expense_date': 'expenseDate',
+      'payment_date': 'paymentDate',
+      'payment_method': 'paymentMethod',
+      'reserved_quantity': 'reservedQuantity',
+      'invoice_date': 'invoiceDate',
+    };
+    return keys[field] ?? field;
   }
 
   TableInfo<Table, dynamic> _tableFor(String collection) {
@@ -184,9 +233,15 @@ class FirestoreRemotePullService {
 
   Variable<Object?> _variableFor(String field, dynamic value) {
     if (value == null) return const Variable(null);
-    if (field.endsWith('_at')) {
+    const dateFields = <String>{
+      'created_at', 'updated_at', 'deleted_at', 'sale_date',
+      'purchase_date', 'expense_date', 'payment_date', 'invoice_date',
+    };
+    if (dateFields.contains(field)) {
       final date = _asDateTime(value);
-      return Variable.withDateTime(date ?? DateTime.fromMillisecondsSinceEpoch(0));
+      return Variable.withDateTime(
+        date ?? DateTime.fromMillisecondsSinceEpoch(0),
+      );
     }
     if (value is bool) return Variable.withBool(value);
     if (value is int) return Variable.withInt(value);
