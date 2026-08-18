@@ -4,6 +4,8 @@ import 'package:drift/drift.dart';
 import '../database/app_database.dart';
 import '../../features/customers/database/customers_table.dart';
 import '../../features/products/database/products_table.dart';
+import '../../features/sales/database/sales_table.dart';
+import '../../features/sales/database/sale_items_table.dart';
 
 /// Pulls remote tenant data into the local database without creating new
 /// outbound queue entries. Remote data only wins when it is newer than local
@@ -26,6 +28,8 @@ class FirestoreRemoteSync {
     await Future.wait([
       _pullProducts(tenantId),
       _pullCustomers(tenantId),
+      _pullSales(tenantId),
+      _pullSaleItems(tenantId),
     ]);
   }
 
@@ -68,6 +72,50 @@ class FirestoreRemoteSync {
       }
 
       await _database.into(_database.customers).insertOnConflictUpdate(remote);
+    }
+  }
+
+  Future<void> _pullSales(String tenantId) async {
+    final snapshot = await _firestore
+        .collection('tenants')
+        .doc(tenantId)
+        .collection('sales')
+        .get();
+
+    for (final document in snapshot.docs) {
+      final data = document.data();
+      final remote = _saleCompanion(document.id, tenantId, data);
+      final local = await (_database.select(_database.sales)
+            ..where((table) => table.id.equals(document.id) & table.tenantId.equals(tenantId)))
+          .getSingleOrNull();
+
+      if (local != null && !_isRemoteNewer(data, local.updatedAt, local.version)) {
+        continue;
+      }
+
+      await _database.into(_database.sales).insertOnConflictUpdate(remote);
+    }
+  }
+
+  Future<void> _pullSaleItems(String tenantId) async {
+    final snapshot = await _firestore
+        .collection('tenants')
+        .doc(tenantId)
+        .collection('saleItems')
+        .get();
+
+    for (final document in snapshot.docs) {
+      final data = document.data();
+      final remote = _saleItemCompanion(document.id, tenantId, data);
+      final local = await (_database.select(_database.saleItems)
+            ..where((table) => table.id.equals(document.id) & table.tenantId.equals(tenantId)))
+          .getSingleOrNull();
+
+      if (local != null && !_isRemoteNewer(data, local.updatedAt, local.version)) {
+        continue;
+      }
+
+      await _database.into(_database.saleItems).insertOnConflictUpdate(remote);
     }
   }
 
@@ -117,6 +165,50 @@ class FirestoreRemoteSync {
       address: Value(_nullableString(data['address'])),
       notes: Value(_nullableString(data['notes'])),
       isActive: Value(data['isActive'] != false),
+    );
+  }
+
+  SalesCompanion _saleCompanion(
+    String id,
+    String tenantId,
+    Map<String, dynamic> data,
+  ) {
+    return SalesCompanion(
+      id: Value(id),
+      tenantId: Value(tenantId),
+      createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()),
+      updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()),
+      deletedAt: Value(_date(data['deletedAt'])),
+      version: Value(_int(data['version'], 1)),
+      syncStatus: const Value('synced'),
+      deviceId: Value((data['deviceId'] ?? '').toString()),
+      customerId: Value((data['customerId'] ?? '').toString()),
+      invoiceNumber: Value((data['invoiceNumber'] ?? '').toString()),
+      total: Value(_double(data['total'])),
+      saleDate: Value(_date(data['saleDate']) ?? DateTime.now().toUtc()),
+      notes: Value(_nullableString(data['notes'])),
+    );
+  }
+
+  SaleItemsCompanion _saleItemCompanion(
+    String id,
+    String tenantId,
+    Map<String, dynamic> data,
+  ) {
+    return SaleItemsCompanion(
+      id: Value(id),
+      tenantId: Value(tenantId),
+      createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()),
+      updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()),
+      deletedAt: Value(_date(data['deletedAt'])),
+      version: Value(_int(data['version'], 1)),
+      syncStatus: const Value('synced'),
+      deviceId: Value((data['deviceId'] ?? '').toString()),
+      saleId: Value((data['saleId'] ?? '').toString()),
+      productId: Value((data['productId'] ?? '').toString()),
+      quantity: Value(_int(data['quantity'], 0)),
+      unitPrice: Value(_double(data['unitPrice'])),
+      total: Value(_double(data['total'])),
     );
   }
 
