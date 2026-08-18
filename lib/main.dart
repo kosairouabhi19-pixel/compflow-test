@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
 import 'app/providers/app_settings_providers.dart';
+import 'core/sync/sync_bootstrap.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -13,6 +14,8 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  await SyncBootstrap.instance.start();
 
   final prefs = await SharedPreferences.getInstance();
 
