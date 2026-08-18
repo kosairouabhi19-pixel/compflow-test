@@ -37,7 +37,8 @@ class AuthController extends StateNotifier<AuthState> {
             state = state.copyWith(
               isLoading: false,
               clearUser: true,
-              errorMessage: 'User profile not found. Please contact the store owner.',
+              errorMessage:
+                  'User profile not found. Please contact the store owner.',
             );
             return;
           }
@@ -96,19 +97,17 @@ class AuthController extends StateNotifier<AuthState> {
       }
     });
 
-    // The user is authenticated and the tenant is known now, so it is safe to
-    // pull cloud changes into SQLite. This runs after session activation and
-    // never writes to the outbound sync queue.
-    try {
-      await SyncBootstrap.instance.pullTenant(appUser.tenantId);
-    } catch (_) {
-      // Local data remains usable if the remote pull is temporarily unavailable.
-    }
-
     state = state.copyWith(
       isLoading: false,
       user: appUser,
       errorMessage: null,
+    );
+
+    // Do not block the login transition on cloud synchronization. Local data
+    // stays available immediately; remote changes are merged in the
+    // background and never create outbound queue entries.
+    unawaited(
+      SyncBootstrap.instance.pullTenant(appUser.tenantId).catchError((_) {}),
     );
   }
 
