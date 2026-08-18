@@ -30,6 +30,7 @@ class FirestoreSyncAdapter {
     'payments': 'payments',
     'invoice': 'invoices',
     'invoices': 'invoices',
+    'inventory': 'inventory',
   };
 
   Future<void> process(SyncQueueItem item) async {
