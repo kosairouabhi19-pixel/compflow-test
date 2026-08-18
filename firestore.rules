@@ -21,6 +21,12 @@ service cloud.firestore {
       return currentUser().data.tenantId;
     }
 
+    function isActiveTenantMember(tenantId) {
+      return signedIn()
+          && currentUser().data.tenantId == tenantId
+          && currentUser().data.isActive == true;
+    }
+
     match /users/{userId} {
       allow read: if signedIn()
                   && (
@@ -50,8 +56,6 @@ service cloud.firestore {
                     && resource.data.tenantId == ownerTenantId();
 
       match /sessions/{deviceId} {
-        // A user can see their own sessions. The owner can also inspect
-        // sessions belonging to employees in the same tenant.
         allow read: if signedIn()
                     && (
                       request.auth.uid == userId
@@ -59,12 +63,8 @@ service cloud.firestore {
                           get(/databases/$(database)/documents/users/$(userId)).data.tenantId == ownerTenantId())
                     );
 
-        // Session writes are limited to the authenticated account itself.
-        // The app uses these documents to enforce the MVP device limit.
         allow create, update: if signedIn() && request.auth.uid == userId;
 
-        // The user can release their own session. The owner can also force
-        // a session logout for an employee in the same tenant.
         allow delete: if signedIn()
                       && (
                         request.auth.uid == userId
@@ -72,6 +72,13 @@ service cloud.firestore {
                             get(/databases/$(database)/documents/users/$(userId)).data.tenantId == ownerTenantId())
                       );
       }
+    }
+
+    // All tenant business data is isolated by the authenticated user's
+    // tenantId. The sync adapter writes to this exact hierarchy:
+    // tenants/{tenantId}/{collection}/{documentId}
+    match /tenants/{tenantId}/{collection}/{documentId} {
+      allow read, create, update, delete: if isActiveTenantMember(tenantId);
     }
 
     match /{document=**} {
