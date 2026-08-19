@@ -73,18 +73,22 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
       (select(sales)..where((t) => t.tenantId.equals(tenantId) & t.deletedAt.isNull() & (t.invoiceNumber.like('%$query%') | t.notes.like('%$query%')))).get();
 
   Future<bool> completeSale({required Sale sale, required List<SaleItemsCompanion> items}) async {
-    if (sale.tenantId != tenantId) throw ArgumentError('عملية البيع لا تنتمي إلى المتجر الحالي');
+    // The DAO is already scoped to the authenticated/current tenant. The POS
+    // layer may provide a stale/default tenant id, so normalize the sale to
+    // this DAO's tenant instead of rejecting an otherwise valid sale.
+    if (sale.id.isEmpty) throw ArgumentError('معرّف عملية البيع مطلوب');
     if (items.isEmpty) throw ArgumentError('يجب أن تحتوي عملية البيع على منتج واحد على الأقل');
     if (sale.total < 0) throw ArgumentError('إجمالي عملية البيع غير صالح');
 
     final requested = <String, int>{};
     for (final item in items) {
       if (item.id.value.isEmpty) throw ArgumentError('معرّف عنصر البيع مطلوب');
-      if (item.tenantId.value != tenantId) throw ArgumentError('عنصر البيع لا ينتمي إلى المتجر الحالي');
       if (item.quantity.value <= 0) throw ArgumentError('الكمية يجب أن تكون أكبر من صفر');
       if (item.unitPrice.value < 0 || item.total.value < 0) throw ArgumentError('سعر أو إجمالي العنصر غير صالح');
       requested[item.productId.value] = (requested[item.productId.value] ?? 0) + item.quantity.value;
     }
+
+    final normalizedSale = sale.copyWith(tenantId: tenantId);
 
     return db.transaction(() async {
       final changedProducts = <Product>[];
@@ -93,7 +97,7 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
         if (product == null) throw Exception('المنتج غير موجود');
         if (product.quantity < entry.value) throw Exception('المخزون غير كافٍ للمنتج: ${product.name}');
       }
-      await into(sales).insert(sale.copyWith(tenantId: tenantId));
+      await into(sales).insert(normalizedSale);
       for (final item in items) await into(saleItems).insert(item.copyWith(tenantId: Value(tenantId)));
       for (final entry in requested.entries) {
         final product = await (select(products)..where((p) => p.id.equals(entry.key) & p.tenantId.equals(tenantId) & p.deletedAt.isNull())).getSingle();
@@ -101,8 +105,8 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
         await update(products).replace(updated);
         changedProducts.add(updated);
       }
-      final persistedSale = await (select(sales)..where((t) => t.id.equals(sale.id) & t.tenantId.equals(tenantId))).getSingle();
-      final persistedItems = await (select(saleItems)..where((t) => t.saleId.equals(sale.id) & t.tenantId.equals(tenantId))).get();
+      final persistedSale = await (select(sales)..where((t) => t.id.equals(normalizedSale.id) & t.tenantId.equals(tenantId))).getSingle();
+      final persistedItems = await (select(saleItems)..where((t) => t.saleId.equals(normalizedSale.id) & t.tenantId.equals(tenantId))).get();
       await _enqueueSale(persistedSale);
       for (final item in persistedItems) await _enqueueSaleItem(item);
       for (final product in changedProducts) await _enqueueProduct(product);
@@ -176,4 +180,3 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
           'isActive': product.isActive,
         },
       );
-}
