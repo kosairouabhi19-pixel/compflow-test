@@ -6,31 +6,11 @@ class CustomersRepository {
 
   CustomersRepository(this._dao);
 
-  Stream<List<Customer>> watchAllCustomers() {
-    return _dao.watchAllCustomers();
-  }
-
-  Future<List<Customer>> getAllCustomers() {
-    return _dao.getAllCustomers();
-  }
-
-  Future<Customer?> getCustomerById(String id) {
-    return _dao.getCustomerById(id);
-  }
-
-  Future<void> insertCustomer(CustomersCompanion customer) async {
-    await _dao.insertCustomer(customer);
-  }
-
-  Future<void> updateCustomer(Customer customer) async {
-    await _dao.updateCustomer(customer);
-  }
-
-  Future<void> deleteCustomer(String id) async {
-    await _dao.deleteCustomer(id);
-  }
-
-  Future<List<Customer>> searchCustomers(String query) {
-    return _dao.searchCustomers(query);
-  }
+  Stream<List<Customer>> watchAllCustomers() => _dao.watchAllCustomers();
+  Future<List<Customer>> getAllCustomers() => _dao.getAllCustomers();
+  Future<Customer?> getCustomerById(String id) => _dao.getCustomerById(id);
+  Future<void> insertCustomer(CustomersCompanion customer) async => _dao.insertCustomer(customer);
+  Future<void> updateCustomer(Customer customer) async => _dao.updateCustomer(customer);
+  Future<void> deleteCustomer(String id) async => _dao.softDeleteCustomer(id);
+  Future<List<Customer>> searchCustomers(String query) => _dao.searchCustomers(query);
 }
