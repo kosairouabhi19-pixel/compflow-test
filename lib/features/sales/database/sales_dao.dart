@@ -73,9 +73,6 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
       (select(sales)..where((t) => t.tenantId.equals(tenantId) & t.deletedAt.isNull() & (t.invoiceNumber.like('%$query%') | t.notes.like('%$query%')))).get();
 
   Future<bool> completeSale({required Sale sale, required List<SaleItemsCompanion> items}) async {
-    // The DAO is already scoped to the authenticated/current tenant. The POS
-    // layer may provide a stale/default tenant id, so normalize the sale to
-    // this DAO's tenant instead of rejecting an otherwise valid sale.
     if (sale.id.isEmpty) throw ArgumentError('معرّف عملية البيع مطلوب');
     if (items.isEmpty) throw ArgumentError('يجب أن تحتوي عملية البيع على منتج واحد على الأقل');
     if (sale.total < 0) throw ArgumentError('إجمالي عملية البيع غير صالح');
@@ -180,3 +177,4 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
           'isActive': product.isActive,
         },
       );
+}
