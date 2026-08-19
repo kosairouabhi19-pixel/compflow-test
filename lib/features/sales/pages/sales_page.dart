@@ -52,107 +52,54 @@ class _SalesPageState extends ConsumerState<SalesPage> {
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(isWide ? 24 : 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.salesTitle,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(l10n.salesTitle, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text('سجل المبيعات والفواتير المنفذة من نافذة البيع', style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _searchQuery = value.trim().toLowerCase()),
+              decoration: InputDecoration(
+                hintText: l10n.salesSearchHint,
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _searchQuery.isEmpty ? null : IconButton(onPressed: () { _searchController.clear(); setState(() => _searchQuery = ''); }, icon: const Icon(Icons.clear_rounded)),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'سجل المبيعات والفواتير المنفذة من نافذة البيع',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: StreamBuilder<List<Sale>>(
+                stream: salesRepository.watchAllSales(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                  if (snapshot.hasError) return Center(child: Text(l10n.salesLoadError));
+                  final sales = (snapshot.data ?? const <Sale>[]).where((sale) {
+                    if (_searchQuery.isEmpty) return true;
+                    return sale.invoiceNumber.toLowerCase().contains(_searchQuery) || sale.total.toString().contains(_searchQuery);
+                  }).toList();
+                  if (sales.isEmpty) {
+                    return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.receipt_long_outlined, size: 52, color: colors.outline), const SizedBox(height: 12), Text(l10n.salesEmpty, style: theme.textTheme.titleMedium)]));
+                  }
+                  return ListView.separated(
+                    itemCount: sales.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final sale = sales[index];
+                      return _SaleCard(sale: sale, customerName: customerNames[sale.customerId], onOpen: () => _showDetails(context, sale, customerNames[sale.customerId], productsById));
+                    },
+                  );
+                },
               ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _searchController,
-                onChanged: (value) => setState(() => _searchQuery = value.trim().toLowerCase()),
-                decoration: InputDecoration(
-                  hintText: l10n.salesSearchHint,
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: _searchQuery.isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                          icon: const Icon(Icons.clear_rounded),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: StreamBuilder<List<Sale>>(
-                  stream: salesRepository.watchAllSales(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.hasError) {
-                      return Center(child: Text(l10n.salesLoadError));
-                    }
-
-                    final sales = (snapshot.data ?? const <Sale>[]).where((sale) {
-                      if (_searchQuery.isEmpty) return true;
-                      return sale.invoiceNumber.toLowerCase().contains(_searchQuery) ||
-                          sale.total.toString().contains(_searchQuery);
-                    }).toList();
-
-                    if (sales.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.receipt_long_outlined, size: 52, color: colors.outline),
-                            const SizedBox(height: 12),
-                            Text(l10n.salesEmpty, style: theme.textTheme.titleMedium),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.separated(
-                      itemCount: sales.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final sale = sales[index];
-                        return _SaleCard(
-                          sale: sale,
-                          customerName: customerNames[sale.customerId],
-                          onOpen: () => _showDetails(
-                            context,
-                            sale,
-                            customerNames[sale.customerId],
-                            productsById,
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
     );
   }
 
-  Future<void> _showDetails(
-    BuildContext context,
-    Sale sale,
-    String? customerName,
-    Map<String, Product> productsById,
-  ) async {
+  Future<void> _showDetails(BuildContext context, Sale sale, String? customerName, Map<String, Product> productsById) async {
     final items = await ref.read(saleItemsDaoProvider).getItemsBySaleId(sale.id);
     if (!context.mounted) return;
-
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => _SaleDetailsDialog(
@@ -160,73 +107,71 @@ class _SalesPageState extends ConsumerState<SalesPage> {
         customerName: customerName,
         items: items,
         productsById: productsById,
-        onPrint: () => _printSale(sale, items, productsById),
+        onPrint: () => _showInvoicePreview(dialogContext, sale, items, productsById),
       ),
     );
   }
 
-  Future<void> _printSale(
-    Sale sale,
-    List<SaleItem> items,
-    Map<String, Product> productsById,
-  ) async {
-    final document = pw.Document();
-
-    document.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (context) {
-          return pw.Padding(
-            padding: const pw.EdgeInsets.all(32),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-              children: [
-                pw.Text(
-                  'CompFlow',
-                  style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
-                ),
-                pw.SizedBox(height: 12),
-                pw.Text('Invoice: ${sale.invoiceNumber}'),
-                pw.Text('Date: ${_formatDate(sale.saleDate)}'),
-                pw.SizedBox(height: 20),
-                pw.Table.fromTextArray(
-                  headers: const ['SKU', 'Qty', 'Unit price', 'Total'],
-                  data: [
-                    for (final item in items)
-                      [
-                        productsById[item.productId]?.sku ?? item.productId,
-                        '${item.quantity}',
-                        '${item.unitPrice.toStringAsFixed(0)} DZD',
-                        '${item.total.toStringAsFixed(0)} DZD',
-                      ],
-                  ],
-                ),
-                pw.SizedBox(height: 24),
-                pw.Align(
-                  alignment: pw.Alignment.centerRight,
-                  child: pw.Text(
-                    'TOTAL: ${sale.total.toStringAsFixed(0)} DZD',
-                    style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+  Future<void> _showInvoicePreview(BuildContext context, Sale sale, List<SaleItem> items, Map<String, Product> productsById) async {
+    final bytes = await _buildInvoicePdf(sale, items, productsById);
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(24),
+        child: SizedBox(
+          width: 900,
+          height: 720,
+          child: PdfPreview(
+            build: (_) async => bytes,
+            canChangePageFormat: true,
+            canChangeOrientation: true,
+            allowPrinting: true,
+            allowSharing: true,
+            pdfFileName: '${sale.invoiceNumber}.pdf',
+          ),
+        ),
       ),
     );
+  }
 
-    await Printing.layoutPdf(onLayout: (_) async => document.save());
+  Future<void> _printSale(Sale sale, List<SaleItem> items, Map<String, Product> productsById) async {
+    await _showInvoicePreview(context, sale, items, productsById);
   }
 }
 
-class _SaleCard extends StatelessWidget {
-  const _SaleCard({
-    required this.sale,
-    required this.customerName,
-    required this.onOpen,
-  });
+Future<dynamic> _buildInvoicePdf(Sale sale, List<SaleItem> items, Map<String, Product> productsById) async {
+  final document = pw.Document();
+  String two(int n) => n.toString().padLeft(2, '0');
+  final date = '${sale.saleDate.year}-${two(sale.saleDate.month)}-${two(sale.saleDate.day)} ${two(sale.saleDate.hour)}:${two(sale.saleDate.minute)}:${two(sale.saleDate.second)}';
+  document.addPage(
+    pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      build: (_) => pw.Padding(
+        padding: const pw.EdgeInsets.all(32),
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+          pw.Text('CompFlow', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 8),
+          pw.Text('Invoice: ${sale.invoiceNumber}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.Text('Date & time: $date'),
+          pw.SizedBox(height: 22),
+          pw.Table.fromTextArray(
+            headers: const ['Product / SKU', 'Qty', 'Unit price', 'Total'],
+            data: [for (final item in items) [productsById[item.productId]?.name ?? item.productId, '${item.quantity}', '${item.unitPrice.toStringAsFixed(0)} DZD', '${item.total.toStringAsFixed(0)} DZD']],
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            cellPadding: const pw.EdgeInsets.all(7),
+          ),
+          pw.SizedBox(height: 24),
+          pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('TOTAL: ${sale.total.toStringAsFixed(0)} DZD', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold))),
+        ]),
+      ),
+    ),
+  );
+  return document.save();
+}
 
+class _SaleCard extends StatelessWidget {
+  const _SaleCard({required this.sale, required this.customerName, required this.onOpen});
   final Sale sale;
   final String? customerName;
   final VoidCallback onOpen;
@@ -235,56 +180,22 @@ class _SaleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.outlineVariant),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: colors.outlineVariant)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onOpen,
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(
-                  color: colors.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.receipt_long_rounded, color: colors.onPrimaryContainer),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      sale.invoiceNumber,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      customerName ?? 'عميل مباشر',
-                      style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '${sale.total.toStringAsFixed(0)} DZD',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: colors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Icon(Icons.chevron_left_rounded, color: colors.onSurfaceVariant),
-            ],
-          ),
+          child: Row(children: [
+            Container(padding: const EdgeInsets.all(11), decoration: BoxDecoration(color: colors.primaryContainer, borderRadius: BorderRadius.circular(12)), child: Icon(Icons.receipt_long_rounded, color: colors.onPrimaryContainer)),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(sale.invoiceNumber, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text(customerName ?? 'عميل مباشر', style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)), Text(_formatDateTime(sale.saleDate), style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))])),
+            Text('${sale.total.toStringAsFixed(0)} DZD', style: theme.textTheme.titleMedium?.copyWith(color: colors.primary, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 12),
+            Icon(Icons.chevron_left_rounded, color: colors.onSurfaceVariant),
+          ]),
         ),
       ),
     );
@@ -292,14 +203,7 @@ class _SaleCard extends StatelessWidget {
 }
 
 class _SaleDetailsDialog extends StatelessWidget {
-  const _SaleDetailsDialog({
-    required this.sale,
-    required this.customerName,
-    required this.items,
-    required this.productsById,
-    required this.onPrint,
-  });
-
+  const _SaleDetailsDialog({required this.sale, required this.customerName, required this.items, required this.productsById, required this.onPrint});
   final Sale sale;
   final String? customerName;
   final List<SaleItem> items;
@@ -310,84 +214,37 @@ class _SaleDetailsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-
     return AlertDialog(
-      title: Row(
-        children: [
-          Expanded(child: Text(sale.invoiceNumber)),
-          IconButton(
-            tooltip: 'طباعة',
-            onPressed: onPrint,
-            icon: const Icon(Icons.print_outlined),
-          ),
-        ],
-      ),
+      title: Row(children: [Expanded(child: Text(sale.invoiceNumber)), IconButton(tooltip: 'معاينة الفاتورة', onPressed: onPrint, icon: const Icon(Icons.preview_outlined))]),
       content: SizedBox(
         width: 650,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('التاريخ: ${_formatDate(sale.saleDate)}'),
-              const SizedBox(height: 4),
-              Text('العميل: ${customerName ?? 'عميل مباشر'}'),
-              const SizedBox(height: 20),
-              ...items.map((item) {
-                final product = productsById[item.productId];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.outlineVariant),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(product?.name ?? item.productId, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 3),
-                            Text('SKU: ${product?.sku ?? item.productId}'),
-                            Text('الكمية: ${item.quantity} × ${item.unitPrice.toStringAsFixed(0)} DZD'),
-                          ],
-                        ),
-                      ),
-                      Text('${item.total.toStringAsFixed(0)} DZD', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                );
-              }),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: colors.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('الإجمالي', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text('${sale.total.toStringAsFixed(0)} DZD', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('التاريخ والوقت: ${_formatDateTime(sale.saleDate)}'),
+          const SizedBox(height: 4),
+          Text('العميل: ${customerName ?? 'عميل مباشر'}'),
+          const SizedBox(height: 20),
+          ...items.map((item) {
+            final product = productsById[item.productId];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(12), border: Border.all(color: colors.outlineVariant)),
+              child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(product?.name ?? item.productId, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)), const SizedBox(height: 3), Text('SKU: ${product?.sku ?? item.productId}'), Text('الكمية: ${item.quantity} × ${item.unitPrice.toStringAsFixed(0)} DZD')])),
+                Text('${item.total.toStringAsFixed(0)} DZD', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+              ]),
+            );
+          }),
+          const SizedBox(height: 8),
+          Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: colors.primaryContainer, borderRadius: BorderRadius.circular(12)), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('الإجمالي', style: TextStyle(fontWeight: FontWeight.bold)), Text('${sale.total.toStringAsFixed(0)} DZD', style: const TextStyle(fontWeight: FontWeight.bold))])),
+        ])),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
-        FilledButton.icon(onPressed: onPrint, icon: const Icon(Icons.print_outlined), label: const Text('طباعة الفاتورة')),
-      ],
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')), FilledButton.icon(onPressed: onPrint, icon: const Icon(Icons.preview_outlined), label: const Text('معاينة الفاتورة'))],
     );
   }
 }
 
-String _formatDate(DateTime date) {
+String _formatDateTime(DateTime date) {
   String two(int n) => n.toString().padLeft(2, '0');
-  return '${date.year}-${two(date.month)}-${two(date.day)}';
+  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${two(date.hour)}:${two(date.minute)}:${two(date.second)}';
 }
