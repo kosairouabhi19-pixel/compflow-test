@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -10,8 +11,6 @@ import '../providers/products_providers.dart';
 enum _ProductFilter { all, active, lowStock }
 
 /// صفحة إدارة المنتجات الحديثة (SaaS UI).
-///
-/// عرض، بحث، تصفية، إضافة، تعديل، حذف مع التكيف الكامل للموبايل والديسكتب.
 class ProductsPage extends ConsumerStatefulWidget {
   const ProductsPage({super.key});
 
@@ -228,9 +227,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              Expanded(
-                child: _buildBody(context, isWide),
-              ),
+              Expanded(child: _buildBody(context, isWide)),
             ],
           ),
         ),
@@ -536,9 +533,9 @@ class _ProductsLoadingState extends StatelessWidget {
   const _ProductsLoadingState();
 
   @override
-  Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
-  }
+  Widget build(BuildContext context) => const Center(
+        child: CircularProgressIndicator(),
+      );
 }
 
 class _ProductsErrorState extends StatelessWidget {
@@ -641,10 +638,8 @@ class _ProductsEmptyState extends StatelessWidget {
 
 /// نموذج إضافة / تعديل منتج.
 ///
-/// الكود الداخلي للمنتج (SKU) يُنشأ تلقائيًا ولا يحتاج العميل لكتابته.
-/// الحقول التجارية غير المطلوبة في تجربة CompFlow الحالية لا تظهر للمستخدم،
-/// مع إبقاء قيم قاعدة البيانات المتوافقة (`purchasePrice` و`minimumQuantity`)
-/// على صفر حتى لا نكسر البيانات القديمة أو الـsync.
+/// SKU يُنشأ تلقائيًا عند إنشاء المنتج ولا يحتاج العميل لكتابته.
+/// الحقول التي أزيلت من واجهة المنتج لا تُستخدم في الإصدار الحالي.
 class _ProductFormSheet extends ConsumerStatefulWidget {
   const _ProductFormSheet({this.product});
 
@@ -669,7 +664,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   @override
   void initState() {
     super.initState();
-
     final product = widget.product;
 
     _nameController = TextEditingController(text: product?.name ?? '');
@@ -745,9 +739,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           quantity: quantity,
           updatedAt: now,
           version: widget.product!.version + 1,
-          // SKU remains unchanged after automatic creation.
-          // The removed fields intentionally stay at their existing values
-          // so editing a legacy product does not silently destroy its data.
           isActive: _isActive,
         );
 
@@ -776,9 +767,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         await repository.addProduct(companion);
       }
 
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -789,9 +778,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -816,7 +803,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: isWide ? 600 : double.infinity),
+          constraints:
+              BoxConstraints(maxWidth: isWide ? 600 : double.infinity),
           child: SingleChildScrollView(
             child: Form(
               key: _formKey,
@@ -864,15 +852,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       labelText: l10n.productsQuantityLabel,
                       hintText: '0',
                       prefixIcon: const Icon(Icons.inventory_2_outlined),
-                      suffixText: l10n.productsQuantity(0).replaceAll('0', ''),
                     ),
                     keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
+                    textInputAction: TextInputAction.done,
                     validator: (value) => _quantityValidator(context, value),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'أدخل الكمية الحالية فقط. الحد الأدنى غير مطلوب.',
+                    'الكمية الحالية للمنتج.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
