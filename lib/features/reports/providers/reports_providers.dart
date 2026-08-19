@@ -8,6 +8,8 @@ import '../../products/providers/products_providers.dart';
 import '../../purchases/providers/purchases_providers.dart';
 import '../../sales/providers/sales_providers.dart';
 
+export '../../../core/database/app_database.dart';
+
 enum ReportPeriodOption { today, thisWeek, thisMonth, thisYear, custom }
 
 final reportPeriodProvider =
