@@ -2,11 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 
 import '../database/app_database.dart';
+import '../../features/customers/database/customers_dao.dart';
 import '../../features/customers/database/customers_table.dart';
 import '../../features/expenses/database/expenses_table.dart';
 import '../../features/inventory/database/inventory_table.dart';
 import '../../features/invoices/database/invoices_table.dart';
 import '../../features/payments/database/payments_table.dart';
+import '../../features/products/database/products_dao.dart';
 import '../../features/products/database/products_table.dart';
 import '../../features/purchases/database/purchases_table.dart';
 import '../../features/sales/database/sales_table.dart';
@@ -71,9 +73,7 @@ class FirestoreRemoteSync {
     for (final d in snapshot.docs) {
       final data = d.data(); final local = await (_database.select(_database.purchases)..where((t) => t.id.equals(d.id) & t.tenantId.equals(tenantId))).getSingleOrNull();
       if (local != null && !_isRemoteNewer(data, local.updatedAt, local.version)) continue;
-      await _database.into(_database.purchases).insertOnConflictUpdate(PurchasesCompanion(
-        id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), supplierId: Value(_string(data['supplierId'])), invoiceNumber: Value(_string(data['invoiceNumber'])), total: Value(_double(data['total'])), purchaseDate: Value(_date(data['purchaseDate']) ?? DateTime.now().toUtc()), notes: Value(_nullableString(data['notes'])),
-      ));
+      await _database.into(_database.purchases).insertOnConflictUpdate(PurchasesCompanion(id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), supplierId: Value(_string(data['supplierId'])), invoiceNumber: Value(_string(data['invoiceNumber'])), total: Value(_double(data['total'])), purchaseDate: Value(_date(data['purchaseDate']) ?? DateTime.now().toUtc()), notes: Value(_nullableString(data['notes']))));
     }
   }
 
@@ -82,9 +82,7 @@ class FirestoreRemoteSync {
     for (final d in snapshot.docs) {
       final data = d.data(); final local = await (_database.select(_database.expenses)..where((t) => t.id.equals(d.id) & t.tenantId.equals(tenantId))).getSingleOrNull();
       if (local != null && !_isRemoteNewer(data, local.updatedAt, local.version)) continue;
-      await _database.into(_database.expenses).insertOnConflictUpdate(ExpensesCompanion(
-        id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), title: Value(_string(data['title'])), amount: Value(_double(data['amount'])), expenseDate: Value(_date(data['expenseDate']) ?? DateTime.now().toUtc()), category: Value(_nullableString(data['category'])), notes: Value(_nullableString(data['notes'])),
-      ));
+      await _database.into(_database.expenses).insertOnConflictUpdate(ExpensesCompanion(id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), title: Value(_string(data['title'])), amount: Value(_double(data['amount'])), expenseDate: Value(_date(data['expenseDate']) ?? DateTime.now().toUtc()), category: Value(_nullableString(data['category'])), notes: Value(_nullableString(data['notes']))));
     }
   }
 
@@ -93,9 +91,7 @@ class FirestoreRemoteSync {
     for (final d in snapshot.docs) {
       final data = d.data(); final local = await (_database.select(_database.payments)..where((t) => t.id.equals(d.id) & t.tenantId.equals(tenantId))).getSingleOrNull();
       if (local != null && !_isRemoteNewer(data, local.updatedAt, local.version)) continue;
-      await _database.into(_database.payments).insertOnConflictUpdate(PaymentsCompanion(
-        id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), customerId: Value(_string(data['customerId'])), amount: Value(_double(data['amount'])), paymentDate: Value(_date(data['paymentDate']) ?? DateTime.now().toUtc()), paymentMethod: Value(_string(data['paymentMethod'])), notes: Value(_nullableString(data['notes'])),
-      ));
+      await _database.into(_database.payments).insertOnConflictUpdate(PaymentsCompanion(id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), customerId: Value(_string(data['customerId'])), amount: Value(_double(data['amount'])), paymentDate: Value(_date(data['paymentDate']) ?? DateTime.now().toUtc()), paymentMethod: Value(_string(data['paymentMethod'])), notes: Value(_nullableString(data['notes']))));
     }
   }
 
@@ -104,9 +100,7 @@ class FirestoreRemoteSync {
     for (final d in snapshot.docs) {
       final data = d.data(); final local = await (_database.select(_database.invoices)..where((t) => t.id.equals(d.id) & t.tenantId.equals(tenantId))).getSingleOrNull();
       if (local != null && !_isRemoteNewer(data, local.updatedAt, local.version)) continue;
-      await _database.into(_database.invoices).insertOnConflictUpdate(InvoicesCompanion(
-        id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), customerId: Value(_string(data['customerId'])), invoiceNumber: Value(_string(data['invoiceNumber'])), total: Value(_double(data['total'])), paid: Value(_double(data['paid'])), remaining: Value(_double(data['remaining'])), invoiceDate: Value(_date(data['invoiceDate']) ?? DateTime.now().toUtc()), status: Value(_string(data['status'], 'unpaid')),
-      ));
+      await _database.into(_database.invoices).insertOnConflictUpdate(InvoicesCompanion(id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), customerId: Value(_string(data['customerId'])), invoiceNumber: Value(_string(data['invoiceNumber'])), total: Value(_double(data['total'])), paid: Value(_double(data['paid'])), remaining: Value(_double(data['remaining'])), invoiceDate: Value(_date(data['invoiceDate']) ?? DateTime.now().toUtc()), status: Value(_string(data['status'], 'unpaid'))));
     }
   }
 
@@ -115,9 +109,7 @@ class FirestoreRemoteSync {
     for (final d in snapshot.docs) {
       final data = d.data(); final local = await (_database.select(_database.inventory)..where((t) => t.id.equals(d.id) & t.tenantId.equals(tenantId))).getSingleOrNull();
       if (local != null && !_isRemoteNewer(data, local.updatedAt, local.version)) continue;
-      await _database.into(_database.inventory).insertOnConflictUpdate(InventoryCompanion(
-        id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), productId: Value(_string(data['productId'])), quantity: Value(_int(data['quantity'], 0)), reservedQuantity: Value(_int(data['reservedQuantity'], 0)), minimumQuantity: Value(_int(data['minimumQuantity'], 0)), warehouse: Value(_nullableString(data['warehouse'])),
-      ));
+      await _database.into(_database.inventory).insertOnConflictUpdate(InventoryCompanion(id: Value(d.id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), productId: Value(_string(data['productId'])), quantity: Value(_int(data['quantity'], 0)), reservedQuantity: Value(_int(data['reservedQuantity'], 0)), minimumQuantity: Value(_int(data['minimumQuantity'], 0)), warehouse: Value(_nullableString(data['warehouse']))));
     }
   }
 
@@ -126,14 +118,7 @@ class FirestoreRemoteSync {
   SalesCompanion _saleCompanion(String id, String tenantId, Map<String, dynamic> data) => SalesCompanion(id: Value(id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), customerId: Value(_string(data['customerId'])), invoiceNumber: Value(_string(data['invoiceNumber'])), total: Value(_double(data['total'])), saleDate: Value(_date(data['saleDate']) ?? DateTime.now().toUtc()), notes: Value(_nullableString(data['notes'])));
   SaleItemsCompanion _saleItemCompanion(String id, String tenantId, Map<String, dynamic> data) => SaleItemsCompanion(id: Value(id), tenantId: Value(tenantId), createdAt: Value(_date(data['createdAt']) ?? DateTime.now().toUtc()), updatedAt: Value(_date(data['updatedAt']) ?? DateTime.now().toUtc()), deletedAt: Value(_date(data['deletedAt'])), version: Value(_int(data['version'], 1)), syncStatus: const Value('synced'), deviceId: Value(_string(data['deviceId'])), saleId: Value(_string(data['saleId'])), productId: Value(_string(data['productId'])), quantity: Value(_int(data['quantity'], 0)), unitPrice: Value(_double(data['unitPrice'])), total: Value(_double(data['total'])));
 
-  bool _isRemoteNewer(Map<String, dynamic> data, DateTime localUpdatedAt, int localVersion) {
-    final remoteUpdatedAt = _date(data['updatedAt']);
-    final remoteVersion = _int(data['version'], 1);
-    if (remoteUpdatedAt == null) return remoteVersion > localVersion;
-    if (remoteUpdatedAt.isAfter(localUpdatedAt)) return true;
-    if (remoteUpdatedAt.isBefore(localUpdatedAt)) return false;
-    return remoteVersion > localVersion;
-  }
+  bool _isRemoteNewer(Map<String, dynamic> data, DateTime localUpdatedAt, int localVersion) { final remoteUpdatedAt = _date(data['updatedAt']); final remoteVersion = _int(data['version'], 1); if (remoteUpdatedAt == null) return remoteVersion > localVersion; if (remoteUpdatedAt.isAfter(localUpdatedAt)) return true; if (remoteUpdatedAt.isBefore(localUpdatedAt)) return false; return remoteVersion > localVersion; }
   DateTime? _date(dynamic value) { if (value is Timestamp) return value.toDate().toUtc(); if (value is DateTime) return value.toUtc(); if (value is String) return DateTime.tryParse(value)?.toUtc(); return null; }
   int _int(dynamic value, int fallback) { if (value is int) return value; if (value is num) return value.toInt(); return int.tryParse(value?.toString() ?? '') ?? fallback; }
   double _double(dynamic value) { if (value is num) return value.toDouble(); return double.tryParse(value?.toString() ?? '') ?? 0; }
