@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../../../core/database/app_database.dart';
 import '../../products/providers/products_providers.dart';
 import '../../sales/providers/sales_providers.dart';
 
@@ -46,8 +47,7 @@ class ReportData {
   bool get isEmpty => salesCount == 0;
 }
 
-bool _inRange(DateTime date, DateTime start, DateTime end) =>
-    !date.isBefore(start) && date.isBefore(end);
+bool _inRange(DateTime date, DateTime start, DateTime end) => !date.isBefore(start) && date.isBefore(end);
 
 (DateTime, DateTime) _resolveRange(ReportPeriodOption period, DateTimeRange? customRange) {
   final now = DateTime.now();
@@ -76,12 +76,9 @@ final reportDataProvider = FutureProvider<ReportData>((ref) async {
   final period = ref.watch(reportPeriodProvider);
   final customRange = ref.watch(customReportRangeProvider);
   final (start, end) = _resolveRange(period, customRange);
-
   final sales = await ref.watch(_allSalesStreamProvider.future);
   final products = await ref.watch(productsProvider.future);
-  final filteredSales = sales.where((s) => _inRange(s.saleDate, start, end)).toList()
-    ..sort((a, b) => b.saleDate.compareTo(a.saleDate));
-
+  final filteredSales = sales.where((s) => _inRange(s.saleDate, start, end)).toList()..sort((a, b) => b.saleDate.compareTo(a.saleDate));
   final totalSales = filteredSales.fold<double>(0, (sum, s) => sum + s.total);
   final dailySales = <DateTime, double>{};
   for (final sale in filteredSales) {
@@ -106,13 +103,8 @@ final reportDataProvider = FutureProvider<ReportData>((ref) async {
 
   final topProducts = quantityByProduct.keys.map((id) {
     final product = productsById[id];
-    return ReportProduct(
-      name: product?.name ?? id,
-      quantity: quantityByProduct[id] ?? 0,
-      salesTotal: totalByProduct[id] ?? 0,
-    );
-  }).toList()
-    ..sort((a, b) => b.quantity.compareTo(a.quantity));
+    return ReportProduct(name: product?.name ?? id, quantity: quantityByProduct[id] ?? 0, salesTotal: totalByProduct[id] ?? 0);
+  }).toList()..sort((a, b) => b.quantity.compareTo(a.quantity));
 
   return ReportData(
     rangeStart: start,
