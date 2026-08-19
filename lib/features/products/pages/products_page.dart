@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -132,9 +131,6 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // =========================
-              // Header الرئيسي
-              // =========================
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -168,12 +164,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
-
-              // =========================
-              // Search and Filter Bar
-              // =========================
               Row(
                 children: [
                   Expanded(
@@ -198,10 +189,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
-
-              // رقائق الفلترة (Filter Chips)
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -239,12 +227,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // =========================
-              // محتوى المنتجات (Grid / List)
-              // =========================
               Expanded(
                 child: _buildBody(context, isWide),
               ),
@@ -308,7 +291,6 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 }
 
-/// شبكة / قائمة المنتجات المتكيفة
 class _ProductsListView extends StatelessWidget {
   const _ProductsListView({
     required this.items,
@@ -341,7 +323,8 @@ class _ProductsListView extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final int crossAxisCount = (constraints.maxWidth / 360).floor().clamp(2, 4);
+        final int crossAxisCount =
+            (constraints.maxWidth / 360).floor().clamp(2, 4);
 
         return GridView.builder(
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -353,7 +336,6 @@ class _ProductsListView extends StatelessWidget {
           itemCount: items.length,
           itemBuilder: (context, index) {
             final product = items[index];
-
             return _ProductCardItem(
               product: product,
               onEdit: () => onEdit(product),
@@ -382,7 +364,6 @@ class _ProductCardItem extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final bool lowStock = product.quantity <= product.minimumQuantity;
 
     return Card(
       elevation: 0,
@@ -464,7 +445,8 @@ class _ProductCardItem extends StatelessWidget {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline, size: 18, color: colorScheme.error),
+                            Icon(Icons.delete_outline,
+                                size: 18, color: colorScheme.error),
                             const SizedBox(width: 8),
                             Text(
                               l10n.commonDelete,
@@ -477,46 +459,21 @@ class _ProductCardItem extends StatelessWidget {
                   ),
                 ],
               ),
-
               const Spacer(),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${product.sellingPrice.toStringAsFixed(2)} ${l10n.currencyDzd}',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (product.purchasePrice > 0)
-                        Text(
-                          '${l10n.productsPurchasePrice}: ${product.purchasePrice.toStringAsFixed(2)}',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-                          ),
-                        ),
-                    ],
+                  Text(
+                    '${product.sellingPrice.toStringAsFixed(2)} ${l10n.currencyDzd}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      _InfoChip(
-                        icon: lowStock ? Icons.warning_amber_rounded : Icons.numbers_rounded,
-                        label: l10n.productsQuantity(product.quantity),
-                        emphasize: lowStock,
-                      ),
-                      if (!product.isActive)
-                        _InfoChip(
-                          icon: Icons.visibility_off_outlined,
-                          label: l10n.productsInactive,
-                        ),
-                    ],
+                  _InfoChip(
+                    icon: Icons.numbers_rounded,
+                    label: l10n.productsQuantity(product.quantity),
                   ),
                 ],
               ),
@@ -547,7 +504,6 @@ class _InfoChip extends StatelessWidget {
     final Color background = emphasize
         ? colorScheme.errorContainer
         : colorScheme.secondaryContainer;
-
     final Color foreground = emphasize
         ? colorScheme.onErrorContainer
         : colorScheme.onSecondaryContainer;
@@ -581,9 +537,7 @@ class _ProductsLoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    return const Center(child: CircularProgressIndicator());
   }
 }
 
@@ -607,25 +561,20 @@ class _ProductsErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline_rounded,
-              size: 48,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline_rounded,
+                size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 16),
             Text(
               l10n.productsLoadError,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -641,9 +590,7 @@ class _ProductsErrorState extends StatelessWidget {
 }
 
 class _ProductsEmptyState extends StatelessWidget {
-  const _ProductsEmptyState({
-    this.isSearch = false,
-  });
+  const _ProductsEmptyState({this.isSearch = false});
 
   final bool isSearch;
 
@@ -674,17 +621,15 @@ class _ProductsEmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               isSearch ? l10n.productsNoResults : l10n.productsEmpty,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               isSearch ? l10n.productsSearchEmptyHint : l10n.productsEmptyHint,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
           ],
@@ -694,11 +639,14 @@ class _ProductsEmptyState extends StatelessWidget {
   }
 }
 
-/// نموذج إضافة / تعديل منتج (Product Form Sheet)
+/// نموذج إضافة / تعديل منتج.
+///
+/// الكود الداخلي للمنتج (SKU) يُنشأ تلقائيًا ولا يحتاج العميل لكتابته.
+/// الحقول التجارية غير المطلوبة في تجربة CompFlow الحالية لا تظهر للمستخدم،
+/// مع إبقاء قيم قاعدة البيانات المتوافقة (`purchasePrice` و`minimumQuantity`)
+/// على صفر حتى لا نكسر البيانات القديمة أو الـsync.
 class _ProductFormSheet extends ConsumerStatefulWidget {
-  const _ProductFormSheet({
-    this.product,
-  });
+  const _ProductFormSheet({this.product});
 
   final Product? product;
 
@@ -712,13 +660,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
-  late final TextEditingController _skuController;
-  late final TextEditingController _barcodeController;
-  late final TextEditingController _purchasePriceController;
   late final TextEditingController _sellingPriceController;
   late final TextEditingController _quantityController;
-  late final TextEditingController _minimumQuantityController;
-  late final TextEditingController _categoryIdController;
 
   late bool _isActive;
   bool _isSaving = false;
@@ -730,37 +673,20 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final product = widget.product;
 
     _nameController = TextEditingController(text: product?.name ?? '');
-    _skuController = TextEditingController(text: product?.sku ?? '');
-    _barcodeController = TextEditingController(text: product?.barcode ?? '');
-    _purchasePriceController = TextEditingController(
-      text: product != null ? product.purchasePrice.toString() : '',
-    );
     _sellingPriceController = TextEditingController(
       text: product != null ? product.sellingPrice.toString() : '',
     );
     _quantityController = TextEditingController(
       text: product != null ? product.quantity.toString() : '0',
     );
-    _minimumQuantityController = TextEditingController(
-      text: product != null ? product.minimumQuantity.toString() : '0',
-    );
-    _categoryIdController = TextEditingController(
-      text: product?.categoryId ?? '',
-    );
-
     _isActive = product?.isActive ?? true;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _skuController.dispose();
-    _barcodeController.dispose();
-    _purchasePriceController.dispose();
     _sellingPriceController.dispose();
     _quantityController.dispose();
-    _minimumQuantityController.dispose();
-    _categoryIdController.dispose();
     super.dispose();
   }
 
@@ -784,9 +710,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     return null;
   }
 
-  String? _intValidator(BuildContext context, String? value) {
+  String? _quantityValidator(BuildContext context, String? value) {
     final l10n = AppLocalizations.of(context);
-    if (value == null || value.trim().isEmpty) return null;
+    if (value == null || value.trim().isEmpty) {
+      return l10n.commonRequiredField;
+    }
 
     final parsed = int.tryParse(value.trim());
     if (parsed == null || parsed < 0) {
@@ -797,19 +725,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   Future<void> _save() async {
     final l10n = AppLocalizations.of(context);
-
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
 
     final String name = _nameController.text.trim();
-    final String sku = _skuController.text.trim();
-    final String barcode = _barcodeController.text.trim();
-    final double purchasePrice = double.parse(_purchasePriceController.text.trim());
-    final double sellingPrice = double.parse(_sellingPriceController.text.trim());
-    final int quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
-    final int minimumQuantity = int.tryParse(_minimumQuantityController.text.trim()) ?? 0;
-    final String categoryId = _categoryIdController.text.trim();
+    final double sellingPrice =
+        double.parse(_sellingPriceController.text.trim());
+    final int quantity = int.parse(_quantityController.text.trim());
 
     final repository = ref.read(productsRepositoryProvider);
     final now = DateTime.now();
@@ -818,22 +741,22 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       if (widget.isEditing) {
         final updated = widget.product!.copyWith(
           name: name,
-          sku: sku,
-          barcode: Value(barcode.isEmpty ? null : barcode),
-          purchasePrice: purchasePrice,
           sellingPrice: sellingPrice,
           quantity: quantity,
-          minimumQuantity: minimumQuantity,
-          categoryId: Value(categoryId.isEmpty ? null : categoryId),
-          isActive: _isActive,
           updatedAt: now,
           version: widget.product!.version + 1,
+          // SKU remains unchanged after automatic creation.
+          // The removed fields intentionally stay at their existing values
+          // so editing a legacy product does not silently destroy its data.
+          isActive: _isActive,
         );
 
         await repository.updateProduct(updated);
       } else {
-        final tenantId = ref.read(authControllerProvider).user?.tenantId ?? '';
+        final tenantId =
+            ref.read(authControllerProvider).user?.tenantId ?? '';
         const deviceId = 'unknown-device';
+        final sku = 'CF-${const Uuid().v4().substring(0, 8).toUpperCase()}';
 
         final companion = ProductsCompanion.insert(
           id: const Uuid().v4(),
@@ -843,12 +766,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           deviceId: deviceId,
           name: name,
           sku: sku,
-          barcode: barcode.isEmpty ? const Value.absent() : Value(barcode),
-          purchasePrice: purchasePrice,
+          purchasePrice: 0,
           sellingPrice: sellingPrice,
           quantity: Value(quantity),
-          minimumQuantity: Value(minimumQuantity),
-          categoryId: categoryId.isEmpty ? const Value.absent() : Value(categoryId),
+          minimumQuantity: const Value(0),
           isActive: Value(_isActive),
         );
 
@@ -895,9 +816,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isWide ? 600 : double.infinity,
-          ),
+          constraints: BoxConstraints(maxWidth: isWide ? 600 : double.infinity),
           child: SingleChildScrollView(
             child: Form(
               key: _formKey,
@@ -909,9 +828,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                     children: [
                       Text(
                         widget.isEditing ? l10n.productsEdit : l10n.productsAdd,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close_rounded),
@@ -920,8 +838,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // البيانات الأساسية
                   TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
@@ -931,107 +847,43 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                     validator: (value) => _requiredValidator(context, value),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _skuController,
-                          decoration: const InputDecoration(
-                            labelText: 'SKU',
-                            prefixIcon: Icon(Icons.qr_code_outlined),
-                          ),
-                          validator: (value) => _requiredValidator(context, value),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _barcodeController,
-                          decoration: InputDecoration(
-                            labelText: l10n.productsBarcodeOptional,
-                            prefixIcon: const Icon(Icons.barcode_reader),
-                          ),
-                        ),
-                      ),
-                    ],
+                  TextFormField(
+                    controller: _sellingPriceController,
+                    decoration: InputDecoration(
+                      labelText: l10n.productsSalePrice,
+                      prefixIcon: const Icon(Icons.sell_outlined),
+                    ),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) => _priceValidator(context, value),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // الأسعار والمخزون
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _purchasePriceController,
-                          decoration: InputDecoration(
-                            labelText: l10n.productsPurchasePrice,
-                            prefixIcon: const Icon(Icons.shopping_bag_outlined),
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          validator: (value) => _priceValidator(context, value),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _sellingPriceController,
-                          decoration: InputDecoration(
-                            labelText: l10n.productsSalePrice,
-                            prefixIcon: const Icon(Icons.sell_outlined),
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          validator: (value) => _priceValidator(context, value),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _quantityController,
-                          decoration: InputDecoration(
-                            labelText: l10n.productsQuantityLabel,
-                            prefixIcon: const Icon(Icons.inventory_2_outlined),
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) => _intValidator(context, value),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _minimumQuantityController,
-                          decoration: InputDecoration(
-                            labelText: l10n.productsMinimum,
-                            prefixIcon: const Icon(Icons.warning_amber_rounded),
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) => _intValidator(context, value),
-                        ),
-                      ),
-                    ],
-                  ),
-
                   const SizedBox(height: 12),
                   TextFormField(
-                    controller: _categoryIdController,
+                    controller: _quantityController,
                     decoration: InputDecoration(
-                      labelText: l10n.productsCategoryOptional,
-                      prefixIcon: const Icon(Icons.category_outlined),
+                      labelText: l10n.productsQuantityLabel,
+                      hintText: '0',
+                      prefixIcon: const Icon(Icons.inventory_2_outlined),
+                      suffixText: l10n.productsQuantity(0).replaceAll('0', ''),
+                    ),
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    validator: (value) => _quantityValidator(context, value),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'أدخل الكمية الحالية فقط. الحد الأدنى غير مطلوب.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
-
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(l10n.productsActive),
                     value: _isActive,
                     onChanged: (value) => setState(() => _isActive = value),
                   ),
-
                   const SizedBox(height: 20),
                   SizedBox(
                     height: 48,
