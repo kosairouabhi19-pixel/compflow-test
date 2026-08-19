@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/pos/pages/pos_page.dart';
 import '../../features/products/pages/products_page.dart';
+import '../../features/reports/pages/reports_page.dart';
 import '../../features/sales/pages/sales_page.dart';
-import '../../features/users/pages/users_page.dart';
 import '../../features/settings/pages/settings_page.dart';
+import '../../features/users/pages/users_page.dart';
 import '../../shared/widgets/app_sidebar.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -68,6 +69,20 @@ class _MainLayoutState extends State<MainLayout> {
       ),
     ];
 
+    final reportsButton = PositionedDirectional(
+      top: 18,
+      end: 24,
+      child: FilledButton.tonalIcon(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ReportsPage()),
+          );
+        },
+        icon: const Icon(Icons.analytics_outlined),
+        label: const Text('تحليل وتقارير'),
+      ),
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= 900) {
@@ -83,7 +98,12 @@ class _MainLayoutState extends State<MainLayout> {
                   },
                 ),
                 Expanded(
-                  child: pages[_index],
+                  child: Stack(
+                    children: [
+                      pages[_index],
+                      if (_index == 0) reportsButton,
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -91,7 +111,25 @@ class _MainLayoutState extends State<MainLayout> {
         }
 
         return Scaffold(
-          body: pages[_index],
+          body: Stack(
+            children: [
+              pages[_index],
+              if (_index == 0)
+                PositionedDirectional(
+                  top: 12,
+                  end: 16,
+                  child: FloatingActionButton.small(
+                    tooltip: 'تحليل وتقارير',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const ReportsPage()),
+                      );
+                    },
+                    child: const Icon(Icons.analytics_outlined),
+                  ),
+                ),
+            ],
+          ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _index,
             destinations: destinations,
