@@ -2,7 +2,7 @@ name: compflow
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: 'none'
 
 version: 1.0.0+1
 
@@ -33,6 +33,9 @@ dependencies:
   path: ^1.9.1
   connectivity_plus: ^7.3.1
   shared_preferences: ^2.5.3
+  pdf: ^3.11.3
+  printing: ^5.14.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
