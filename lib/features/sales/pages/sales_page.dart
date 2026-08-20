@@ -1,9 +1,11 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+
 import '../../../core/database/app_database.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../customers/providers/customers_providers.dart';
@@ -13,6 +15,7 @@ import '../providers/sales_providers.dart';
 
 class SalesPage extends ConsumerStatefulWidget {
   const SalesPage({super.key});
+
   @override
   ConsumerState<SalesPage> createState() => _SalesPageState();
 }
@@ -55,7 +58,14 @@ class _SalesPageState extends ConsumerState<SalesPage> {
             children: [
               Text(l10n.salesTitle, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              Text('سجل المبيعات والفواتير المنفذة من نافذة البيع', style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+              Text(
+                switch (Localizations.localeOf(context).languageCode) {
+                  'fr' => 'Historique des ventes et factures finalisées',
+                  'en' => 'History of completed sales and invoices',
+                  _ => 'سجل المبيعات والفواتير المنفذة من نقطة البيع',
+                },
+                style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
+              ),
               const SizedBox(height: 20),
               TextField(
                 controller: _searchController,
@@ -79,16 +89,26 @@ class _SalesPageState extends ConsumerState<SalesPage> {
                 child: StreamBuilder<List<Sale>>(
                   stream: salesRepository.watchAllSales(),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
                     if (snapshot.hasError) return Center(child: Text(l10n.salesLoadError));
-                    final sales = (snapshot.data ?? const <Sale>[]).where((sale) =>
-                        _searchQuery.isEmpty || sale.invoiceNumber.toLowerCase().contains(_searchQuery) || sale.total.toString().contains(_searchQuery)).toList();
+                    final sales = (snapshot.data ?? const <Sale>[]).where((sale) {
+                      return _searchQuery.isEmpty ||
+                          sale.invoiceNumber.toLowerCase().contains(_searchQuery) ||
+                          sale.total.toString().contains(_searchQuery);
+                    }).toList();
                     if (sales.isEmpty) {
-                      return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.receipt_long_outlined, size: 52, color: colors.outline),
-                        const SizedBox(height: 12),
-                        Text(l10n.salesEmpty, style: theme.textTheme.titleMedium),
-                      ]));
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.receipt_long_outlined, size: 52, color: colors.outline),
+                            const SizedBox(height: 12),
+                            Text(l10n.salesEmpty, style: theme.textTheme.titleMedium),
+                          ],
+                        ),
+                      );
                     }
                     return ListView.separated(
                       itemCount: sales.length,
@@ -112,7 +132,12 @@ class _SalesPageState extends ConsumerState<SalesPage> {
     );
   }
 
-  Future<void> _showDetails(BuildContext context, Sale sale, String? customerName, Map<String, Product> productsById) async {
+  Future<void> _showDetails(
+    BuildContext context,
+    Sale sale,
+    String? customerName,
+    Map<String, Product> productsById,
+  ) async {
     final items = await ref.read(saleItemsDaoProvider).getItemsBySaleId(sale.id);
     if (!context.mounted) return;
     await showDialog<void>(
@@ -127,8 +152,14 @@ class _SalesPageState extends ConsumerState<SalesPage> {
     );
   }
 
-  Future<void> _showInvoicePreview(BuildContext context, Sale sale, List<SaleItem> items, Map<String, Product> productsById) async {
-    final bytes = await _buildInvoicePdf(sale, items, productsById);
+  Future<void> _showInvoicePreview(
+    BuildContext context,
+    Sale sale,
+    List<SaleItem> items,
+    Map<String, Product> productsById,
+  ) async {
+    final language = Localizations.localeOf(context).languageCode;
+    final bytes = await _buildInvoicePdf(sale, items, productsById, language);
     if (!context.mounted) return;
     await showDialog<void>(
       context: context,
@@ -151,43 +182,110 @@ class _SalesPageState extends ConsumerState<SalesPage> {
   }
 }
 
-Future<Uint8List> _buildInvoicePdf(Sale sale, List<SaleItem> items, Map<String, Product> productsById) async {
-  final document = pw.Document();
+Future<Uint8List> _buildInvoicePdf(
+  Sale sale,
+  List<SaleItem> items,
+  Map<String, Product> productsById,
+  String language,
+) async {
+  final labels = _PdfLabels(language);
+  final baseFont = language == 'ar'
+      ? await PdfGoogleFonts.notoSansArabicRegular()
+      : await PdfGoogleFonts.notoSansRegular();
+  final boldFont = language == 'ar'
+      ? await PdfGoogleFonts.notoSansArabicBold()
+      : await PdfGoogleFonts.notoSansBold();
+  final theme = pw.ThemeData.withFont(base: baseFont, bold: boldFont);
+  final document = pw.Document(theme: theme);
   String two(int n) => n.toString().padLeft(2, '0');
   final date = '${sale.saleDate.year}-${two(sale.saleDate.month)}-${two(sale.saleDate.day)} ${two(sale.saleDate.hour)}:${two(sale.saleDate.minute)}:${two(sale.saleDate.second)}';
+
+  final content = pw.Padding(
+    padding: const pw.EdgeInsets.all(32),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Text('CompFlow', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 8),
+        pw.Text('${labels.invoice}: ${sale.invoiceNumber}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        pw.Text('${labels.dateTime}: $date'),
+        pw.SizedBox(height: 22),
+        pw.Table.fromTextArray(
+          headers: [labels.product, labels.qty, labels.unitPrice, labels.total],
+          data: [
+            for (final item in items)
+              [
+                productsById[item.productId]?.name ?? item.productId,
+                '${item.quantity}',
+                '${item.unitPrice.toStringAsFixed(0)} DZD',
+                '${item.total.toStringAsFixed(0)} DZD',
+              ],
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+          cellPadding: const pw.EdgeInsets.all(7),
+        ),
+        pw.SizedBox(height: 24),
+        pw.Align(
+          alignment: language == 'ar' ? pw.Alignment.centerLeft : pw.Alignment.centerRight,
+          child: pw.Text(
+            '${labels.total}: ${sale.total.toStringAsFixed(0)} DZD',
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+      ],
+    ),
+  );
+
   document.addPage(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
-      build: (_) => pw.Padding(
-        padding: const pw.EdgeInsets.all(32),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-          children: [
-            pw.Text('CompFlow', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 8),
-            pw.Text('Invoice: ${sale.invoiceNumber}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            pw.Text('Date & time: $date'),
-            pw.SizedBox(height: 22),
-            pw.Table.fromTextArray(
-              headers: const ['Product / SKU', 'Qty', 'Unit price', 'Total'],
-              data: [
-                for (final item in items)
-                  [productsById[item.productId]?.name ?? item.productId, '${item.quantity}', '${item.unitPrice.toStringAsFixed(0)} DZD', '${item.total.toStringAsFixed(0)} DZD']
-              ],
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              cellPadding: const pw.EdgeInsets.all(7),
-            ),
-            pw.SizedBox(height: 24),
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Text('TOTAL: ${sale.total.toStringAsFixed(0)} DZD', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-            ),
-          ],
-        ),
-      ),
+      build: (_) => language == 'ar'
+          ? pw.Directionality(textDirection: pw.TextDirection.rtl, child: content)
+          : content,
     ),
   );
   return document.save();
+}
+
+class _PdfLabels {
+  _PdfLabels(String language)
+      : invoice = switch (language) {
+          'fr' => 'Facture',
+          'en' => 'Invoice',
+          _ => 'الفاتورة',
+        },
+        dateTime = switch (language) {
+          'fr' => 'Date et heure',
+          'en' => 'Date & time',
+          _ => 'التاريخ والوقت',
+        },
+        product = switch (language) {
+          'fr' => 'Produit / SKU',
+          'en' => 'Product / SKU',
+          _ => 'المنتج / SKU',
+        },
+        qty = switch (language) {
+          'fr' => 'Qté',
+          'en' => 'Qty',
+          _ => 'الكمية',
+        },
+        unitPrice = switch (language) {
+          'fr' => 'Prix unitaire',
+          'en' => 'Unit price',
+          _ => 'سعر الوحدة',
+        },
+        total = switch (language) {
+          'fr' => 'Total',
+          'en' => 'Total',
+          _ => 'الإجمالي',
+        };
+
+  final String invoice;
+  final String dateTime;
+  final String product;
+  final String qty;
+  final String unitPrice;
+  final String total;
 }
 
 class _SaleCard extends StatelessWidget {
@@ -222,7 +320,7 @@ class _SaleCard extends StatelessWidget {
                   children: [
                     Text(sale.invoiceNumber, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text(customerName ?? 'عميل مباشر', style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+                    Text(customerName ?? (Localizations.localeOf(context).languageCode == 'en' ? 'Direct customer' : Localizations.localeOf(context).languageCode == 'fr' ? 'Client direct' : 'عميل مباشر'), style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
                     Text(_formatDateTime(sale.saleDate), style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
                   ],
                 ),
@@ -250,17 +348,19 @@ class _SaleDetailsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final language = Localizations.localeOf(context).languageCode;
+    final directCustomer = language == 'en' ? 'Direct customer' : language == 'fr' ? 'Client direct' : 'عميل مباشر';
     return AlertDialog(
-      title: Row(children: [Expanded(child: Text(sale.invoiceNumber)), IconButton(tooltip: 'معاينة الفاتورة', onPressed: onPrint, icon: const Icon(Icons.preview_outlined))]),
+      title: Row(children: [Expanded(child: Text(sale.invoiceNumber)), IconButton(tooltip: language == 'en' ? 'Preview invoice' : language == 'fr' ? 'Aperçu de la facture' : 'معاينة الفاتورة', onPressed: onPrint, icon: const Icon(Icons.preview_outlined))]),
       content: SizedBox(
         width: 650,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('التاريخ والوقت: ${_formatDateTime(sale.saleDate)}'),
+              Text('${language == 'en' ? 'Date & time' : language == 'fr' ? 'Date et heure' : 'التاريخ والوقت'}: ${_formatDateTime(sale.saleDate)}'),
               const SizedBox(height: 4),
-              Text('العميل: ${customerName ?? 'عميل مباشر'}'),
+              Text('${language == 'en' ? 'Customer' : language == 'fr' ? 'Client' : 'العميل'}: ${customerName ?? directCustomer}'),
               const SizedBox(height: 20),
               ...items.map((item) {
                 final product = productsById[item.productId];
@@ -277,7 +377,7 @@ class _SaleDetailsDialog extends StatelessWidget {
                             Text(product?.name ?? item.productId, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 3),
                             Text('SKU: ${product?.sku ?? item.productId}'),
-                            Text('الكمية: ${item.quantity} × ${item.unitPrice.toStringAsFixed(0)} DZD'),
+                            Text('${language == 'en' ? 'Qty' : language == 'fr' ? 'Qté' : 'الكمية'}: ${item.quantity} × ${item.unitPrice.toStringAsFixed(0)} DZD'),
                           ],
                         ),
                       ),
@@ -290,15 +390,15 @@ class _SaleDetailsDialog extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(color: colors.primaryContainer, borderRadius: BorderRadius.circular(12)),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('الإجمالي', style: TextStyle(fontWeight: FontWeight.bold)), Text('${sale.total.toStringAsFixed(0)} DZD', style: const TextStyle(fontWeight: FontWeight.bold))]),
+                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(language == 'en' ? 'Total' : language == 'fr' ? 'Total' : 'الإجمالي', style: const TextStyle(fontWeight: FontWeight.bold)), Text('${sale.total.toStringAsFixed(0)} DZD', style: const TextStyle(fontWeight: FontWeight.bold))]),
               ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
-        FilledButton.icon(onPressed: onPrint, icon: const Icon(Icons.preview_outlined), label: const Text('معاينة الفاتورة')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(language == 'en' ? 'Close' : language == 'fr' ? 'Fermer' : 'إغلاق')),
+        FilledButton.icon(onPressed: onPrint, icon: const Icon(Icons.preview_outlined), label: Text(language == 'en' ? 'Preview invoice' : language == 'fr' ? 'Aperçu de la facture' : 'معاينة الفاتورة')),
       ],
     );
   }
