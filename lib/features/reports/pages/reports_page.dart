@@ -342,7 +342,11 @@ class _ReportChartPainter extends CustomPainter {
       final x = entries.length == 1 ? left + width / 2 : left + width * i / (entries.length - 1);
       final y = top + height - height * entries[i].value / safeMax;
       points.add(Offset(x, y));
-      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
     }
     final area = Path.from(path)..lineTo(points.last.dx, top + height)..lineTo(points.first.dx, top + height)..close();
     canvas.drawPath(area, areaPaint);
@@ -384,44 +388,119 @@ Future<void> _showPrintPreview(BuildContext context, ReportData report) async {
 }
 
 Future<Uint8List> _buildReportPdf(ReportData report, String language) async {
-  final baseFont = language == 'ar' ? await PdfGoogleFonts.notoSansArabicRegular() : await PdfGoogleFonts.notoSansRegular();
-  final boldFont = language == 'ar' ? await PdfGoogleFonts.notoSansArabicBold() : await PdfGoogleFonts.notoSansBold();
-  final theme = pw.ThemeData.withFont(base: baseFont, bold: boldFont);
+  final arabicFont = await PdfGoogleFonts.notoSansArabicRegular();
+  final arabicBoldFont = await PdfGoogleFonts.notoSansArabicBold();
+  final latinFont = await PdfGoogleFonts.notoSansRegular();
+  final latinBoldFont = await PdfGoogleFonts.notoSansBold();
+  final theme = pw.ThemeData.withFont(
+    base: latinFont,
+    bold: latinBoldFont,
+    fontFallback: [arabicFont, arabicBoldFont],
+  );
   final document = pw.Document(theme: theme);
   final end = report.rangeEnd.subtract(const Duration(seconds: 1));
   String date(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}:${d.second.toString().padLeft(2, '0')}';
   String money(double v) => '${v.toStringAsFixed(0)} DZD';
   final l = _ReportPdfLabels(language);
+  final rtl = language == 'ar';
+  final textDirection = rtl ? pw.TextDirection.rtl : pw.TextDirection.ltr;
+
+  pw.Widget labelText(String text, {bool bold = false, double? fontSize, pw.TextDirection? direction}) {
+    return pw.Text(
+      text,
+      textDirection: direction ?? textDirection,
+      style: pw.TextStyle(
+        fontSize: fontSize,
+        fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        fontFallback: [arabicFont, arabicBoldFont],
+      ),
+    );
+  }
+
+  pw.Widget ltrText(String text, {bool bold = false}) => labelText(text, bold: bold, direction: pw.TextDirection.ltr);
+  pw.Widget rtlText(String text, {bool bold = false}) => labelText(text, bold: bold, direction: pw.TextDirection.rtl);
+
+  pw.Widget periodWidget() {
+    if (!rtl) return labelText('${l.period}: ${date(report.rangeStart)} - ${date(end)}');
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      textDirection: pw.TextDirection.rtl,
+      children: [
+        rtlText(l.period),
+        pw.SizedBox(width: 5),
+        ltrText('${date(report.rangeStart)} - ${date(end)}'),
+      ],
+    );
+  }
+
+  pw.Widget moneyCell(String value) => pw.Padding(padding: const pw.EdgeInsets.all(7), child: ltrText(value));
+  pw.Widget textCell(String value, {bool bold = false, bool rtlValue = false}) => pw.Padding(
+        padding: const pw.EdgeInsets.all(7),
+        child: rtlValue ? rtlText(value, bold: bold) : ltrText(value, bold: bold),
+      );
 
   document.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(32),
-      textDirection: language == 'ar' ? pw.TextDirection.rtl : pw.TextDirection.ltr,
+      textDirection: textDirection,
       build: (_) => [
-        pw.Text('CompFlow - ${l.report}', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+        labelText('CompFlow - ${l.report}', bold: true, fontSize: 22),
         pw.SizedBox(height: 6),
-        pw.Text('${l.period}: ${date(report.rangeStart)} - ${date(end)}'),
+        periodWidget(),
         pw.SizedBox(height: 18),
-        pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300), children: [
-          pw.TableRow(children: [_pdfCell(l.totalSales, bold: true), _pdfCell(l.invoices, bold: true), _pdfCell(l.average, bold: true), _pdfCell(l.items, bold: true)]),
-          pw.TableRow(children: [_pdfCell(money(report.totalSales)), _pdfCell('${report.salesCount}'), _pdfCell(money(report.averageSale)), _pdfCell('${report.totalItemsSold}')]),
-        ]),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey300),
+          children: [
+            pw.TableRow(children: [
+              textCell(l.totalSales, bold: true, rtlValue: rtl),
+              textCell(l.invoices, bold: true, rtlValue: rtl),
+              textCell(l.average, bold: true, rtlValue: rtl),
+              textCell(l.items, bold: true, rtlValue: rtl),
+            ]),
+            pw.TableRow(children: [
+              moneyCell(money(report.totalSales)),
+              textCell('${report.salesCount}'),
+              moneyCell(money(report.averageSale)),
+              textCell('${report.totalItemsSold}'),
+            ]),
+          ],
+        ),
         pw.SizedBox(height: 22),
-        pw.Text(l.invoices, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+        labelText(l.invoices, bold: true, fontSize: 16),
         pw.SizedBox(height: 8),
-        pw.Table.fromTextArray(headers: [l.invoice, l.dateTime, l.total], data: [for (final sale in report.sales.take(1000)) [sale.invoiceNumber, date(sale.saleDate), money(sale.total)]], headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold), cellPadding: const pw.EdgeInsets.all(6)),
+        pw.Table.fromTextArray(
+          headers: [l.invoice, l.dateTime, l.total],
+          data: [
+            for (final sale in report.sales.take(1000)) [
+              ltrText(sale.invoiceNumber),
+              ltrText(date(sale.saleDate)),
+              ltrText(money(sale.total)),
+            ],
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontFallback: [arabicFont, arabicBoldFont]),
+          cellPadding: const pw.EdgeInsets.all(6),
+        ),
         pw.SizedBox(height: 18),
-        pw.Text(l.topProducts, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+        labelText(l.topProducts, bold: true, fontSize: 16),
         pw.SizedBox(height: 8),
-        pw.Table.fromTextArray(headers: [l.product, l.qty, l.sales], data: [for (final product in report.topProducts) [product.name, '${product.quantity}', money(product.salesTotal)]], cellPadding: const pw.EdgeInsets.all(6)),
+        pw.Table.fromTextArray(
+          headers: [l.product, l.qty, l.sales],
+          data: [
+            for (final product in report.topProducts) [
+              rtl ? rtlText(product.name) : ltrText(product.name),
+              ltrText('${product.quantity}'),
+              ltrText(money(product.salesTotal)),
+            ],
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontFallback: [arabicFont, arabicBoldFont]),
+          cellPadding: const pw.EdgeInsets.all(6),
+        ),
       ],
     ),
   );
   return document.save();
 }
-
-pw.Widget _pdfCell(String text, {bool bold = false}) => pw.Padding(padding: const pw.EdgeInsets.all(7), child: pw.Text(text, style: pw.TextStyle(fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)));
 
 class _ReportPdfLabels {
   _ReportPdfLabels(String language)
