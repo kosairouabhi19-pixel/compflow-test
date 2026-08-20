@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -27,7 +28,8 @@ class ReportsPage extends ConsumerWidget {
     ref.read(reportPeriodProvider.notifier).state = ReportPeriodOption.custom;
   }
 
-  String _periodLabel(AppLocalizations l10n, ReportPeriodOption option) {
+  String _periodLabel(BuildContext context, AppLocalizations l10n, ReportPeriodOption option) {
+    final language = Localizations.localeOf(context).languageCode;
     switch (option) {
       case ReportPeriodOption.today:
         return l10n.reportsToday;
@@ -36,7 +38,7 @@ class ReportsPage extends ConsumerWidget {
       case ReportPeriodOption.thisMonth:
         return l10n.reportsMonth;
       case ReportPeriodOption.thisYear:
-        return 'سنوي';
+        return language == 'en' ? 'Year' : language == 'fr' ? 'Année' : 'سنوي';
       case ReportPeriodOption.custom:
         return l10n.reportsCustom;
     }
@@ -55,14 +57,20 @@ class ReportsPage extends ConsumerWidget {
           reportAsync.maybeWhen(
             data: (report) => report.isEmpty
                 ? const SizedBox.shrink()
-                : FilledButton.tonalIcon(
-                    onPressed: () => _showPrintPreview(context, report),
-                    icon: const Icon(Icons.preview_outlined),
-                    label: const Text('معاينة الطباعة'),
+                : Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 16),
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => _showPrintPreview(context, report),
+                      icon: const Icon(Icons.preview_outlined),
+                      label: Text(switch (Localizations.localeOf(context).languageCode) {
+                        'en' => 'Print preview',
+                        'fr' => 'Aperçu avant impression',
+                        _ => 'معاينة الطباعة',
+                      }),
+                    ),
                   ),
             orElse: () => const SizedBox.shrink(),
           ),
-          const SizedBox(width: 12),
         ],
       ),
       body: SafeArea(
@@ -78,7 +86,7 @@ class ReportsPage extends ConsumerWidget {
                   children: [
                     for (final option in ReportPeriodOption.values)
                       ChoiceChip(
-                        label: Text(_periodLabel(l10n, option)),
+                        label: Text(_periodLabel(context, l10n, option)),
                         selected: selected == option,
                         onSelected: (value) {
                           if (!value) return;
@@ -119,24 +127,45 @@ class _ReportsContent extends StatelessWidget {
   const _ReportsContent({required this.report});
   final ReportData report;
 
-  String _money(double value) => '${value.toStringAsFixed(0)} دج';
-  String _dateTime(DateTime value) => '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}:${value.second.toString().padLeft(2, '0')}';
-  String _date(DateTime value) => '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+  String _money(double value) => '${value.toStringAsFixed(0)} DZD';
+
+  String _dateTime(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}:${value.second.toString().padLeft(2, '0')}';
+
+  String _date(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final language = Localizations.localeOf(context).languageCode;
     final end = report.rangeEnd.subtract(const Duration(seconds: 1));
     final range = _date(report.rangeStart) == _date(end)
         ? _date(report.rangeStart)
         : '${_date(report.rangeStart)} → ${_date(end)}';
 
     final metrics = [
-      _Metric('إجمالي المبيعات', _money(report.totalSales), Icons.payments_outlined),
-      _Metric('عدد الفواتير', '${report.salesCount}', Icons.receipt_long_outlined),
-      _Metric('متوسط الفاتورة', _money(report.averageSale), Icons.shopping_cart_outlined),
-      _Metric('القطع المباعة', '${report.totalItemsSold}', Icons.inventory_2_outlined),
+      _Metric(
+        language == 'en' ? 'Total sales' : language == 'fr' ? 'Ventes totales' : 'إجمالي المبيعات',
+        _money(report.totalSales),
+        Icons.payments_outlined,
+      ),
+      _Metric(
+        language == 'en' ? 'Invoices' : language == 'fr' ? 'Factures' : 'عدد الفواتير',
+        '${report.salesCount}',
+        Icons.receipt_long_outlined,
+      ),
+      _Metric(
+        language == 'en' ? 'Average invoice' : language == 'fr' ? 'Panier moyen' : 'متوسط الفاتورة',
+        _money(report.averageSale),
+        Icons.shopping_cart_outlined,
+      ),
+      _Metric(
+        language == 'en' ? 'Items sold' : language == 'fr' ? 'Articles vendus' : 'القطع المباعة',
+        '${report.totalItemsSold}',
+        Icons.inventory_2_outlined,
+      ),
     ];
 
     return SingleChildScrollView(
@@ -153,16 +182,22 @@ class _ReportsContent extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('تحليل المبيعات', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                        Text(
+                          language == 'en' ? 'Sales analysis' : language == 'fr' ? 'Analyse des ventes' : 'تحليل المبيعات',
+                          style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                        ),
                         const SizedBox(height: 4),
-                        Text('الفترة: $range', style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+                        Text(
+                          '${language == 'en' ? 'Period' : language == 'fr' ? 'Période' : 'الفترة'}: $range',
+                          style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
+                        ),
                       ],
                     ),
                   ),
                   FilledButton.icon(
                     onPressed: () => _showPrintPreview(context, report),
                     icon: const Icon(Icons.print_outlined),
-                    label: const Text('معاينة وطباعة'),
+                    label: Text(language == 'en' ? 'Preview & print' : language == 'fr' ? 'Aperçu et impression' : 'معاينة وطباعة'),
                   ),
                 ],
               ),
@@ -191,9 +226,15 @@ class _ReportsContent extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('اتجاه المبيعات', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                      Text(
+                        language == 'en' ? 'Sales trend' : language == 'fr' ? 'Évolution des ventes' : 'اتجاه المبيعات',
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                      ),
                       const SizedBox(height: 4),
-                      Text('الرسم يوضح تغير قيمة المبيعات عبر الفترة بدل أعمدة مزدحمة.', style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+                      Text(
+                        language == 'en' ? 'Clear daily sales movement for the selected period.' : language == 'fr' ? 'Évolution quotidienne des ventes sur la période sélectionnée.' : 'حركة المبيعات اليومية للفترة المحددة بشكل واضح.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                      ),
                       const SizedBox(height: 18),
                       SizedBox(height: 280, child: _SalesChart(data: report.dailySales)),
                     ],
@@ -204,8 +245,8 @@ class _ReportsContent extends StatelessWidget {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final stacked = constraints.maxWidth < 850;
-                  final productsCard = _TopProductsCard(products: report.topProducts, money: _money);
-                  final invoicesCard = _InvoicesCard(sales: report.sales, money: _money, dateTime: _dateTime);
+                  final productsCard = _TopProductsCard(products: report.topProducts, money: _money, language: language);
+                  final invoicesCard = _InvoicesCard(sales: report.sales, money: _money, dateTime: _dateTime, language: language);
                   return stacked
                       ? Column(children: [invoicesCard, const SizedBox(height: 18), productsCard])
                       : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(flex: 3, child: invoicesCard), const SizedBox(width: 18), Expanded(flex: 2, child: productsCard)]);
@@ -236,72 +277,94 @@ class _MetricCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(children: [
-          CircleAvatar(backgroundColor: colors.primaryContainer, child: Icon(metric.icon, color: colors.onPrimaryContainer)),
-          const SizedBox(width: 14),
-          Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(metric.value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(metric.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-          ])),
-        ]),
+        child: Row(
+          children: [
+            CircleAvatar(backgroundColor: colors.primaryContainer, child: Icon(metric.icon, color: colors.onPrimaryContainer)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(metric.value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text(metric.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _InvoicesCard extends StatelessWidget {
-  const _InvoicesCard({required this.sales, required this.money, required this.dateTime});
+  const _InvoicesCard({required this.sales, required this.money, required this.dateTime, required this.language});
   final List<Sale> sales;
   final String Function(double) money;
   final String Function(DateTime) dateTime;
+  final String language;
 
   @override
   Widget build(BuildContext context) {
+    final invoice = language == 'en' ? 'Invoice' : language == 'fr' ? 'Facture' : 'الفاتورة';
+    final date = language == 'en' ? 'Date & time' : language == 'fr' ? 'Date et heure' : 'التاريخ والوقت';
+    final total = language == 'en' ? 'Total' : language == 'fr' ? 'Total' : 'الإجمالي';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text('الفواتير', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [DataColumn(label: Text('الفاتورة')), DataColumn(label: Text('التاريخ والوقت')), DataColumn(label: Text('الإجمالي'))],
-              rows: [for (final sale in sales.take(500)) DataRow(cells: [DataCell(Text(sale.invoiceNumber)), DataCell(Text(dateTime(sale.saleDate))), DataCell(Text(money(sale.total)))])],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(language == 'en' ? 'Invoices' : language == 'fr' ? 'Factures' : 'الفواتير', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: [DataColumn(label: Text(invoice)), DataColumn(label: Text(date)), DataColumn(label: Text(total))],
+                rows: [
+                  for (final sale in sales.take(500))
+                    DataRow(cells: [DataCell(Text(sale.invoiceNumber)), DataCell(Text(dateTime(sale.saleDate))), DataCell(Text(money(sale.total)))])
+                ],
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _TopProductsCard extends StatelessWidget {
-  const _TopProductsCard({required this.products, required this.money});
+  const _TopProductsCard({required this.products, required this.money, required this.language});
   final List<ReportProduct> products;
   final String Function(double) money;
+  final String language;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text('الأكثر مبيعًا', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text('مرتبة حسب عدد القطع المباعة', style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 12),
-          if (products.isEmpty) const Text('لا توجد بيانات كافية.'),
-          for (var i = 0; i < products.length; i++)
-            ListTile(
-              dense: true,
-              leading: CircleAvatar(radius: 16, child: Text('${i + 1}')),
-              title: Text(products[i].name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text('${products[i].quantity} قطعة'),
-              trailing: Text(money(products[i].salesTotal)),
-            ),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(language == 'en' ? 'Top products' : language == 'fr' ? 'Meilleurs produits' : 'الأكثر مبيعًا', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(language == 'en' ? 'Ranked by units sold' : language == 'fr' ? 'Classés par quantité vendue' : 'مرتبة حسب عدد القطع المباعة', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 12),
+            if (products.isEmpty) Text(language == 'en' ? 'Not enough data.' : language == 'fr' ? 'Données insuffisantes.' : 'لا توجد بيانات كافية.'),
+            for (var i = 0; i < products.length; i++)
+              ListTile(
+                dense: true,
+                leading: CircleAvatar(radius: 16, child: Text('${i + 1}')),
+                title: Text(products[i].name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text('${products[i].quantity} ${language == 'en' ? 'units' : language == 'fr' ? 'unités' : 'قطعة'}'),
+                trailing: Text(money(products[i].salesTotal)),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -315,18 +378,24 @@ class _SalesChart extends StatelessWidget {
   Widget build(BuildContext context) {
     if (data.isEmpty) return const Center(child: Text('لا توجد بيانات كافية.'));
     final entries = data.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
-    final maxValue = entries.fold<double>(0, (m, e) => e.value > m ? e.value : m);
+    final maxValue = entries.fold<double>(0, (m, e) => math.max(m, e.value));
     return LayoutBuilder(
       builder: (context, constraints) => CustomPaint(
         size: Size(constraints.maxWidth, constraints.maxHeight),
-        painter: _SalesChartPainter(entries: entries, maxValue: maxValue == 0 ? 1 : maxValue, primary: Theme.of(context).colorScheme.primary, grid: Theme.of(context).colorScheme.outlineVariant, textStyle: Theme.of(context).textTheme.bodySmall!),
+        painter: _ReportChartPainter(
+          entries: entries,
+          maxValue: maxValue <= 0 ? 1 : maxValue,
+          primary: Theme.of(context).colorScheme.primary,
+          grid: Theme.of(context).colorScheme.outlineVariant,
+          textStyle: Theme.of(context).textTheme.bodySmall!,
+        ),
       ),
     );
   }
 }
 
-class _SalesChartPainter extends CustomPainter {
-  const _SalesChartPainter({required this.entries, required this.maxValue, required this.primary, required this.grid, required this.textStyle});
+class _ReportChartPainter extends CustomPainter {
+  const _ReportChartPainter({required this.entries, required this.maxValue, required this.primary, required this.grid, required this.textStyle});
   final List<MapEntry<DateTime, double>> entries;
   final double maxValue;
   final Color primary;
@@ -335,90 +404,184 @@ class _SalesChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const left = 58.0, right = 18.0, top = 16.0, bottom = 40.0;
-    final width = size.width - left - right;
-    final height = size.height - top - bottom;
-    final gridPaint = Paint()..color = grid.withValues(alpha: .35)..strokeWidth = 1;
-    final linePaint = Paint()..color = primary..strokeWidth = 3..style = PaintingStyle.stroke;
+    const left = 58.0;
+    const right = 18.0;
+    const top = 16.0;
+    const bottom = 40.0;
+    final width = math.max(1, size.width - left - right);
+    final height = math.max(1, size.height - top - bottom);
+    final safeMax = maxValue * 1.15;
+    final gridPaint = Paint()..color = grid.withOpacity(.45)..strokeWidth = 1;
+    final linePaint = Paint()..color = primary..strokeWidth = 3..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
     final pointPaint = Paint()..color = primary;
+    final areaPaint = Paint()..color = primary.withOpacity(.10);
 
     for (var i = 0; i <= 4; i++) {
       final y = top + height - height * i / 4;
       canvas.drawLine(Offset(left, y), Offset(size.width - right, y), gridPaint);
     }
 
-    if (entries.length == 1) {
-      final y = top + height - height * entries.first.value / maxValue;
-      canvas.drawCircle(Offset(left + width / 2, y), 5, pointPaint);
-    } else {
-      final path = Path();
-      for (var i = 0; i < entries.length; i++) {
-        final x = left + width * i / (entries.length - 1);
-        final y = top + height - height * entries[i].value / maxValue;
-        if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
-      }
-      canvas.drawPath(path, linePaint);
-      for (var i = 0; i < entries.length; i++) {
-        final x = left + width * i / (entries.length - 1);
-        final y = top + height - height * entries[i].value / maxValue;
-        canvas.drawCircle(Offset(x, y), 4, pointPaint);
-      }
+    final points = <Offset>[];
+    final path = Path();
+    for (var i = 0; i < entries.length; i++) {
+      final x = entries.length == 1 ? left + width / 2 : left + width * i / (entries.length - 1);
+      final y = top + height - height * entries[i].value / safeMax;
+      final point = Offset(x, y);
+      points.add(point);
+      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
     }
 
-    final step = entries.length <= 10 ? 1 : (entries.length / 8).ceil();
+    final area = Path.from(path)
+      ..lineTo(points.last.dx, top + height)
+      ..lineTo(points.first.dx, top + height)
+      ..close();
+    canvas.drawPath(area, areaPaint);
+    canvas.drawPath(path, linePaint);
+
+    final step = entries.length <= 8 ? 1 : (entries.length / 7).ceil();
     for (var i = 0; i < entries.length; i += step) {
+      final point = points[i];
+      canvas.drawCircle(point, 4.5, pointPaint);
       final label = '${entries[i].key.day}/${entries[i].key.month}';
       final tp = TextPainter(text: TextSpan(text: label, style: textStyle), textDirection: TextDirection.ltr)..layout();
-      final x = left + width * (entries.length == 1 ? .5 : i / (entries.length - 1));
-      tp.paint(canvas, Offset(x - tp.width / 2, size.height - 26));
+      tp.paint(canvas, Offset(point.dx - tp.width / 2, size.height - 24));
+    }
+    if (entries.length > 1 && (entries.length - 1) % step != 0) {
+      final i = entries.length - 1;
+      final point = points[i];
+      canvas.drawCircle(point, 4.5, pointPaint);
+      final label = '${entries[i].key.day}/${entries[i].key.month}';
+      final tp = TextPainter(text: TextSpan(text: label, style: textStyle), textDirection: TextDirection.ltr)..layout();
+      tp.paint(canvas, Offset(point.dx - tp.width / 2, size.height - 24));
     }
   }
 
   @override
-  bool shouldRepaint(covariant _SalesChartPainter oldDelegate) => oldDelegate.entries != entries || oldDelegate.maxValue != maxValue;
+  bool shouldRepaint(covariant _ReportChartPainter oldDelegate) => oldDelegate.entries != entries || oldDelegate.maxValue != maxValue;
 }
 
 Future<void> _showPrintPreview(BuildContext context, ReportData report) async {
-  final bytes = await _buildReportPdf(report);
+  final language = Localizations.localeOf(context).languageCode;
+  final bytes = await _buildReportPdf(report, language);
   if (!context.mounted) return;
   await showDialog<void>(
     context: context,
-    builder: (context) => Dialog(
+    builder: (_) => Dialog(
       insetPadding: const EdgeInsets.all(24),
-      child: SizedBox(width: 1000, height: 760, child: PdfPreview(build: (_) async => bytes, canChangePageFormat: true, canChangeOrientation: true, allowPrinting: true, allowSharing: true, pdfFileName: 'compflow-sales-report.pdf')),
+      child: SizedBox(
+        width: 1000,
+        height: 760,
+        child: PdfPreview(
+          build: (_) async => bytes,
+          canChangePageFormat: true,
+          canChangeOrientation: true,
+          allowPrinting: true,
+          allowSharing: true,
+          pdfFileName: 'compflow-sales-report.pdf',
+        ),
+      ),
     ),
   );
 }
 
-Future<Uint8List> _buildReportPdf(ReportData report) async {
-  final document = pw.Document();
+Future<Uint8List> _buildReportPdf(ReportData report, String language) async {
+  final baseFont = language == 'ar'
+      ? await PdfGoogleFonts.notoSansArabicRegular()
+      : await PdfGoogleFonts.notoSansRegular();
+  final boldFont = language == 'ar'
+      ? await PdfGoogleFonts.notoSansArabicBold()
+      : await PdfGoogleFonts.notoSansBold();
+  final theme = pw.ThemeData.withFont(base: baseFont, bold: boldFont);
+  final document = pw.Document(theme: theme);
   final end = report.rangeEnd.subtract(const Duration(seconds: 1));
+
   String date(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}:${d.second.toString().padLeft(2, '0')}';
   String money(double v) => '${v.toStringAsFixed(0)} DZD';
 
-  document.addPage(pw.MultiPage(
+  final labels = _ReportPdfLabels(language);
+  final content = pw.MultiPage(
     pageFormat: PdfPageFormat.a4,
     margin: const pw.EdgeInsets.all(32),
     build: (_) => [
-      pw.Text('CompFlow - Sales Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+      pw.Text('CompFlow - ${labels.report}', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(height: 6),
-      pw.Text('Period: ${date(report.rangeStart)} - ${date(end)}'),
+      pw.Text('${labels.period}: ${date(report.rangeStart)} - ${date(end)}'),
       pw.SizedBox(height: 18),
-      pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300), children: [
-        pw.TableRow(children: [_pdfCell('Total sales', bold: true), _pdfCell('Invoices', bold: true), _pdfCell('Average invoice', bold: true), _pdfCell('Items sold', bold: true)]),
-        pw.TableRow(children: [_pdfCell(money(report.totalSales)), _pdfCell('${report.salesCount}'), _pdfCell(money(report.averageSale)), _pdfCell('${report.totalItemsSold}')]),
-      ]),
+      pw.Table(
+        border: pw.TableBorder.all(color: PdfColors.grey300),
+        children: [
+          pw.TableRow(children: [
+            _pdfCell(labels.totalSales, bold: true),
+            _pdfCell(labels.invoices, bold: true),
+            _pdfCell(labels.average, bold: true),
+            _pdfCell(labels.items, bold: true),
+          ]),
+          pw.TableRow(children: [
+            _pdfCell(money(report.totalSales)),
+            _pdfCell('${report.salesCount}'),
+            _pdfCell(money(report.averageSale)),
+            _pdfCell('${report.totalItemsSold}'),
+          ]),
+        ],
+      ),
       pw.SizedBox(height: 22),
-      pw.Text('Invoices', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+      pw.Text(labels.invoices, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(height: 8),
-      pw.Table.fromTextArray(headers: const ['Invoice', 'Date & time', 'Total'], data: [for (final sale in report.sales.take(1000)) [sale.invoiceNumber, date(sale.saleDate), money(sale.total)]], headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold), cellPadding: const pw.EdgeInsets.all(6)),
+      pw.Table.fromTextArray(
+        headers: [labels.invoice, labels.dateTime, labels.total],
+        data: [for (final sale in report.sales.take(1000)) [sale.invoiceNumber, date(sale.saleDate), money(sale.total)]],
+        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+        cellPadding: const pw.EdgeInsets.all(6),
+      ),
       pw.SizedBox(height: 18),
-      pw.Text('Top products', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+      pw.Text(labels.topProducts, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(height: 8),
-      pw.Table.fromTextArray(headers: const ['Product', 'Qty', 'Sales'], data: [for (final product in report.topProducts) [product.name, '${product.quantity}', money(product.salesTotal)]], cellPadding: const pw.EdgeInsets.all(6)),
+      pw.Table.fromTextArray(
+        headers: [labels.product, labels.qty, labels.sales],
+        data: [for (final product in report.topProducts) [product.name, '${product.quantity}', money(product.salesTotal)]],
+        cellPadding: const pw.EdgeInsets.all(6),
+      ),
     ],
-  ));
+  );
+
+  document.addPage(
+    language == 'ar'
+        ? pw.Directionality(textDirection: pw.TextDirection.rtl, child: content)
+        : content,
+  );
   return document.save();
 }
 
-pw.Widget _pdfCell(String text, {bool bold = false}) => pw.Padding(padding: const pw.EdgeInsets.all(7), child: pw.Text(text, style: pw.TextStyle(fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)));
+pw.Widget _pdfCell(String text, {bool bold = false}) =>
+    pw.Padding(padding: const pw.EdgeInsets.all(7), child: pw.Text(text, style: pw.TextStyle(fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)));
+
+class _ReportPdfLabels {
+  _ReportPdfLabels(String language)
+      : report = language == 'en' ? 'Sales Report' : language == 'fr' ? 'Rapport des ventes' : 'تقرير المبيعات',
+        period = language == 'en' ? 'Period' : language == 'fr' ? 'Période' : 'الفترة',
+        totalSales = language == 'en' ? 'Total sales' : language == 'fr' ? 'Ventes totales' : 'إجمالي المبيعات',
+        invoices = language == 'en' ? 'Invoices' : language == 'fr' ? 'Factures' : 'الفواتير',
+        average = language == 'en' ? 'Average invoice' : language == 'fr' ? 'Panier moyen' : 'متوسط الفاتورة',
+        items = language == 'en' ? 'Items sold' : language == 'fr' ? 'Articles vendus' : 'القطع المباعة',
+        invoice = language == 'en' ? 'Invoice' : language == 'fr' ? 'Facture' : 'الفاتورة',
+        dateTime = language == 'en' ? 'Date & time' : language == 'fr' ? 'Date et heure' : 'التاريخ والوقت',
+        total = language == 'en' ? 'Total' : language == 'fr' ? 'Total' : 'الإجمالي',
+        topProducts = language == 'en' ? 'Top products' : language == 'fr' ? 'Meilleurs produits' : 'الأكثر مبيعًا',
+        product = language == 'en' ? 'Product' : language == 'fr' ? 'Produit' : 'المنتج',
+        qty = language == 'en' ? 'Qty' : language == 'fr' ? 'Qté' : 'الكمية',
+        sales = language == 'en' ? 'Sales' : language == 'fr' ? 'Ventes' : 'المبيعات';
+
+  final String report;
+  final String period;
+  final String totalSales;
+  final String invoices;
+  final String average;
+  final String items;
+  final String invoice;
+  final String dateTime;
+  final String total;
+  final String topProducts;
+  final String product;
+  final String qty;
+  final String sales;
+}
