@@ -7,7 +7,6 @@ import '../../features/reports/pages/reports_page.dart';
 import '../../features/sales/pages/sales_page.dart';
 import '../../features/settings/pages/settings_page.dart';
 import '../../features/users/pages/users_page.dart';
-import '../../shared/layouts/main_layout.dart';
 import '../../shared/widgets/app_sidebar.dart';
 import '../../l10n/app_localizations.dart';
 
