@@ -55,9 +55,12 @@ String _formatCurrency(double value, AppLocalizations l10n) {
   return '${buffer.toString()} ${l10n.currencyDzd}';
 }
 
-String _formatDate(DateTime date) {
-  String two(int value) => value.toString().padLeft(2, '0');
-  return '${date.year}-${two(date.month)}-${two(date.day)}';
+String _averageInvoiceLabel(BuildContext context) {
+  return switch (Localizations.localeOf(context).languageCode) {
+    'fr' => 'Panier moyen',
+    'en' => 'Average invoice',
+    _ => 'متوسط الفاتورة',
+  };
 }
 
 class _DashboardContent extends StatelessWidget {
@@ -201,7 +204,7 @@ class _MetricsGrid extends StatelessWidget {
     final metrics = [
       _Metric(Icons.point_of_sale_rounded, l10n.dashboardSalesToday, _formatCurrency(data.totalSalesToday, l10n)),
       _Metric(Icons.receipt_long_rounded, l10n.dashboardSalesCountToday, data.salesCountToday.toString()),
-      _Metric(Icons.trending_up_rounded, l10n.dashboardNetProfitApprox, _formatCurrency(data.netProfitApproxToday, l10n), emphasize: true),
+      _Metric(Icons.shopping_cart_checkout_rounded, _averageInvoiceLabel(context), _formatCurrency(data.averageSaleToday, l10n), emphasize: true),
       _Metric(Icons.inventory_2_rounded, l10n.dashboardProductsCount, data.productsCount.toString()),
     ];
 
@@ -325,7 +328,11 @@ class _SalesChartCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                l10n.dashboardChartSubtitle,
+                switch (Localizations.localeOf(context).languageCode) {
+                  'fr' => 'Évolution du chiffre d’affaires',
+                  'en' => 'Sales trend over time',
+                  _ => 'تطور المبيعات مع مرور الوقت',
+                },
                 style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
               ),
             ],
@@ -365,18 +372,13 @@ class _SalesChartCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
               SizedBox(
-                height: compact ? 240 : 280,
+                height: compact ? 250 : 300,
                 child: points.isEmpty
-                    ? Center(
-                        child: Text(
-                          l10n.dashboardChartEmpty,
-                          style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
-                        ),
-                      )
+                    ? Center(child: Text(l10n.dashboardChartEmpty))
                     : CustomPaint(
-                        painter: _DashboardChartPainter(
+                        painter: _SalesLineChartPainter(
                           points: points,
                           colors: colors,
                           textStyle: theme.textTheme.bodySmall!,
@@ -384,16 +386,8 @@ class _SalesChartCard extends StatelessWidget {
                         child: const SizedBox.expand(),
                       ),
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 24,
-                runSpacing: 8,
-                children: [
-                  _ChartLegend(color: colors.primary, label: l10n.dashboardSalesLegend),
-                  _ChartLegend(color: colors.error, label: l10n.dashboardExpensesLegend),
-                ],
-              ),
+              const SizedBox(height: 10),
+              _ChartLegend(color: colors.primary, label: l10n.dashboardSalesLegend),
             ],
           );
         },
@@ -403,11 +397,7 @@ class _SalesChartCard extends StatelessWidget {
 }
 
 class _ChartRangeSelector extends StatelessWidget {
-  const _ChartRangeSelector({
-    required this.selectedMode,
-    required this.onChanged,
-    required this.labels,
-  });
+  const _ChartRangeSelector({required this.selectedMode, required this.onChanged, required this.labels});
 
   final int selectedMode;
   final ValueChanged<int> onChanged;
@@ -471,8 +461,8 @@ class _ChartLegend extends StatelessWidget {
   }
 }
 
-class _DashboardChartPainter extends CustomPainter {
-  _DashboardChartPainter({required this.points, required this.colors, required this.textStyle});
+class _SalesLineChartPainter extends CustomPainter {
+  _SalesLineChartPainter({required this.points, required this.colors, required this.textStyle});
 
   final List<DashboardChartPoint> points;
   final ColorScheme colors;
@@ -482,94 +472,88 @@ class _DashboardChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
 
-    const left = 12.0;
-    const right = 12.0;
-    const top = 16.0;
-    const bottom = 42.0;
-    final chartWidth = size.width - left - right;
-    final chartHeight = size.height - top - bottom;
-    final maxValue = points.map((point) => math.max(point.sales, point.expenses)).fold<double>(0, math.max);
-    final double safeMax = maxValue <= 0 ? 1.0 : maxValue * 1.15;
+    const left = 58.0;
+    const right = 18.0;
+    const top = 18.0;
+    const bottom = 40.0;
+    final width = math.max(1, size.width - left - right);
+    final height = math.max(1, size.height - top - bottom);
+    final maxValue = points.fold<double>(0, (max, point) => math.max(max, point.sales));
+    final safeMax = maxValue <= 0 ? 1.0 : maxValue * 1.15;
+    final gridPaint = Paint()
+      ..color = colors.outlineVariant.withOpacity(.65)
+      ..strokeWidth = 1;
+    final linePaint = Paint()
+      ..color = colors.primary
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final pointPaint = Paint()..color = colors.primary;
+    final areaPaint = Paint()
+      ..color = colors.primary.withOpacity(.10)
+      ..style = PaintingStyle.fill;
 
-    final gridPaint = Paint()..color = colors.outlineVariant..strokeWidth = 1;
     for (int i = 0; i <= 4; i++) {
-      final y = top + chartHeight * i / 4;
+      final y = top + height - height * i / 4;
       canvas.drawLine(Offset(left, y), Offset(size.width - right, y), gridPaint);
+      final value = safeMax * i / 4;
+      final label = value.round().toString();
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: textStyle.copyWith(color: colors.onSurfaceVariant)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painter.paint(canvas, Offset(left - painter.width - 8, y - painter.height / 2));
     }
 
-    final groupWidth = chartWidth / points.length;
-    final double barWidth = math.min(26.0, groupWidth * .28);
-
+    final path = Path();
+    final pointsOnCanvas = <Offset>[];
     for (int i = 0; i < points.length; i++) {
-      final point = points[i];
-      final centerX = left + groupWidth * i + groupWidth / 2;
-      final salesHeight = chartHeight * (point.sales / safeMax);
-      final expensesHeight = chartHeight * (point.expenses / safeMax);
+      final x = points.length == 1
+          ? left + width / 2
+          : left + width * i / (points.length - 1);
+      final y = top + height - height * points[i].sales / safeMax;
+      final offset = Offset(x, y);
+      pointsOnCanvas.add(offset);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
 
-      final salesRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(centerX - barWidth - 2, top + chartHeight - salesHeight, barWidth, salesHeight),
-        const Radius.circular(6),
-      );
-      final expensesRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(centerX + 2, top + chartHeight - expensesHeight, barWidth, expensesHeight),
-        const Radius.circular(6),
-      );
+    final area = Path.from(path)
+      ..lineTo(pointsOnCanvas.last.dx, top + height)
+      ..lineTo(pointsOnCanvas.first.dx, top + height)
+      ..close();
+    canvas.drawPath(area, areaPaint);
+    canvas.drawPath(path, linePaint);
 
-      canvas.drawRRect(salesRect, Paint()..color = colors.primary);
-      canvas.drawRRect(expensesRect, Paint()..color = colors.error);
-
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: point.label,
-          style: textStyle.copyWith(color: colors.onSurfaceVariant, fontSize: 10),
-        ),
-        textDirection: TextDirection.rtl,
-      )..layout(maxWidth: groupWidth);
-
-      textPainter.paint(
-        canvas,
-        Offset(centerX - textPainter.width / 2, top + chartHeight + 12),
-      );
+    final labelStep = points.length <= 8 ? 1 : (points.length / 7).ceil();
+    for (int i = 0; i < points.length; i += labelStep) {
+      final point = pointsOnCanvas[i];
+      canvas.drawCircle(point, 5, pointPaint);
+      final painter = TextPainter(
+        text: TextSpan(text: points[i].label, style: textStyle.copyWith(color: colors.onSurfaceVariant)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painter.paint(canvas, Offset(point.dx - painter.width / 2, size.height - 24));
+    }
+    if (points.length > 1 && (points.length - 1) % labelStep != 0) {
+      final i = points.length - 1;
+      final point = pointsOnCanvas[i];
+      canvas.drawCircle(point, 5, pointPaint);
+      final painter = TextPainter(
+        text: TextSpan(text: points[i].label, style: textStyle.copyWith(color: colors.onSurfaceVariant)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painter.paint(canvas, Offset(point.dx - painter.width / 2, size.height - 24));
     }
   }
 
   @override
-  bool shouldRepaint(covariant _DashboardChartPainter oldDelegate) {
-    return oldDelegate.points != points || oldDelegate.colors != colors;
-  }
-}
-
-class _LowStockSection extends StatelessWidget {
-  const _LowStockSection({required this.products});
-  final List<Product> products;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final colors = Theme.of(context).colorScheme;
-    return _SectionCard(
-      title: l10n.dashboardLowStockTitle,
-      icon: Icons.warning_amber_rounded,
-      iconColor: colors.error,
-      child: products.isEmpty
-          ? _EmptyText(text: l10n.dashboardLowStockEmpty)
-          : Column(
-              children: [
-                for (final product in products.take(6))
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: colors.errorContainer,
-                      child: Icon(Icons.inventory_2_rounded, color: colors.onErrorContainer),
-                    ),
-                    title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(l10n.dashboardLowStockQuantity(product.minimumQuantity, product.quantity)),
-                    trailing: Icon(Icons.warning_rounded, color: colors.error),
-                  ),
-              ],
-            ),
-    );
-  }
+  bool shouldRepaint(covariant _SalesLineChartPainter oldDelegate) =>
+      oldDelegate.points != points || oldDelegate.colors != colors;
 }
 
 class _RecentSalesSection extends StatelessWidget {
@@ -582,94 +566,78 @@ class _RecentSalesSection extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return _SectionCard(
-      title: l10n.dashboardRecentSalesTitle,
-      icon: Icons.receipt_long_rounded,
-      child: sales.isEmpty
-          ? _EmptyText(text: l10n.dashboardRecentSalesEmpty)
-          : Column(
-              children: [
-                for (final sale in sales)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: colors.primaryContainer,
-                      child: Icon(Icons.receipt_long_rounded, color: colors.onPrimaryContainer),
-                    ),
-                    title: Text(
-                      sale.invoiceNumber,
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: Text(
-                      l10n.dashboardSaleCustomerDate(
-                        customerNames[sale.customerId] ?? l10n.dashboardUnknownCustomer,
-                        _formatDate(sale.saleDate),
-                      ),
-                    ),
-                    trailing: Text(
-                      _formatCurrency(sale.total, l10n),
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800, color: colors.primary),
-                    ),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l10n.dashboardRecentSalesTitle, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            if (sales.isEmpty)
+              Text(l10n.dashboardRecentSalesEmpty)
+            else
+              for (final sale in sales)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: colors.primaryContainer,
+                    child: Icon(Icons.receipt_long_rounded, color: colors.onPrimaryContainer),
                   ),
-              ],
-            ),
+                  title: Text(sale.invoiceNumber, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text('${customerNames[sale.customerId] ?? l10n.dashboardUnknownCustomer} • ${_formatDateTime(sale.saleDate)}'),
+                  trailing: Text(
+                    _formatCurrency(sale.total, l10n),
+                    style: TextStyle(color: colors.primary, fontWeight: FontWeight.w700),
+                  ),
+                ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.icon, required this.child, this.iconColor});
-  final String title;
-  final IconData icon;
-  final Widget child;
-  final Color? iconColor;
+class _LowStockSection extends StatelessWidget {
+  const _LowStockSection({required this.products});
+  final List<Product> products;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: iconColor ?? colors.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l10n.dashboardLowStockTitle, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            if (products.isEmpty)
+              Text(l10n.dashboardLowStockEmpty)
+            else
+              for (final product in products.take(8))
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: colors.errorContainer,
+                    child: Icon(Icons.inventory_2_outlined, color: colors.onErrorContainer),
+                  ),
+                  title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(l10n.dashboardLowStockQuantity(product.quantity, product.minimumQuantity)),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          child,
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _EmptyText extends StatelessWidget {
-  const _EmptyText({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Text(text, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
-    );
-  }
+String _formatDateTime(DateTime value) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year} ${two(value.hour)}:${two(value.minute)}:${two(value.second)}';
 }
 
 class _DashboardErrorState extends StatelessWidget {
@@ -680,20 +648,19 @@ class _DashboardErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final colors = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline_rounded, size: 52, color: colors.error),
-            const SizedBox(height: 16),
-            Text(l10n.dashboardErrorTitle),
+            const Icon(Icons.error_outline_rounded, size: 48),
+            const SizedBox(height: 12),
+            Text(l10n.dashboardErrorTitle, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center, style: TextStyle(color: colors.onSurfaceVariant)),
+            Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            FilledButton.tonal(onPressed: onRetry, child: Text(l10n.commonRetry)),
+            FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded), label: Text(l10n.commonRetry)),
           ],
         ),
       ),
