@@ -231,8 +231,8 @@ class FirestoreRemotePullService {
     }
   }
 
-  Variable<Object?> _variableFor(String field, dynamic value) {
-    if (value == null) return const Variable(null);
+  Variable<Object> _variableFor(String field, dynamic value) {
+    if (value == null) return const Variable<Object>(null);
     const dateFields = <String>{
       'created_at', 'updated_at', 'deleted_at', 'sale_date',
       'purchase_date', 'expense_date', 'payment_date', 'invoice_date',
