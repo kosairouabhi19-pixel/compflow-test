@@ -189,26 +189,39 @@ Future<Uint8List> _buildInvoicePdf(
   String language,
 ) async {
   final labels = _PdfLabels(language);
-  final baseFont = language == 'ar'
-      ? await PdfGoogleFonts.notoSansArabicRegular()
-      : await PdfGoogleFonts.notoSansRegular();
-  final boldFont = language == 'ar'
-      ? await PdfGoogleFonts.notoSansArabicBold()
-      : await PdfGoogleFonts.notoSansBold();
-  final theme = pw.ThemeData.withFont(base: baseFont, bold: boldFont);
+  final isArabic = language == 'ar';
+  final arabicFont = await PdfGoogleFonts.notoSansArabicRegular();
+  final arabicBoldFont = await PdfGoogleFonts.notoSansArabicBold();
+  final latinFont = await PdfGoogleFonts.notoSansRegular();
+  final latinBoldFont = await PdfGoogleFonts.notoSansBold();
+  final baseFont = isArabic ? arabicFont : latinFont;
+  final boldFont = isArabic ? arabicBoldFont : latinBoldFont;
+  final fallbackFonts = isArabic ? [latinFont, latinBoldFont] : [arabicFont, arabicBoldFont];
+  final theme = pw.ThemeData.withFont(
+    base: baseFont,
+    bold: boldFont,
+    fontFallback: fallbackFonts,
+  );
   final document = pw.Document(theme: theme);
+  final direction = isArabic ? pw.TextDirection.rtl : pw.TextDirection.ltr;
   String two(int n) => n.toString().padLeft(2, '0');
   final date = '${sale.saleDate.year}-${two(sale.saleDate.month)}-${two(sale.saleDate.day)} ${two(sale.saleDate.hour)}:${two(sale.saleDate.minute)}:${two(sale.saleDate.second)}';
+  pw.TextStyle style({bool bold = false, double? size}) => pw.TextStyle(
+        font: bold ? boldFont : baseFont,
+        fontSize: size,
+        fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        fontFallback: fallbackFonts,
+      );
 
   final content = pw.Padding(
     padding: const pw.EdgeInsets.all(32),
     child: pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
-        pw.Text('CompFlow', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+        pw.Text('CompFlow', style: style(bold: true, size: 24)),
         pw.SizedBox(height: 8),
-        pw.Text('${labels.invoice}: ${sale.invoiceNumber}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-        pw.Text('${labels.dateTime}: $date'),
+        pw.Text('${labels.invoice}: ${sale.invoiceNumber}', style: style(bold: true)),
+        pw.Text('${labels.dateTime}: $date', style: style()),
         pw.SizedBox(height: 22),
         pw.Table.fromTextArray(
           headers: [labels.product, labels.qty, labels.unitPrice, labels.total],
@@ -221,15 +234,16 @@ Future<Uint8List> _buildInvoicePdf(
                 '${item.total.toStringAsFixed(0)} DZD',
               ],
           ],
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+          headerStyle: style(bold: true),
+          cellStyle: style(),
           cellPadding: const pw.EdgeInsets.all(7),
         ),
         pw.SizedBox(height: 24),
         pw.Align(
-          alignment: language == 'ar' ? pw.Alignment.centerLeft : pw.Alignment.centerRight,
+          alignment: isArabic ? pw.Alignment.centerLeft : pw.Alignment.centerRight,
           child: pw.Text(
             '${labels.total}: ${sale.total.toStringAsFixed(0)} DZD',
-            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+            style: style(bold: true, size: 18),
           ),
         ),
       ],
@@ -239,9 +253,8 @@ Future<Uint8List> _buildInvoicePdf(
   document.addPage(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
-      build: (_) => language == 'ar'
-          ? pw.Directionality(textDirection: pw.TextDirection.rtl, child: content)
-          : content,
+      textDirection: direction,
+      build: (_) => content,
     ),
   );
   return document.save();
