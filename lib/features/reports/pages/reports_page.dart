@@ -371,58 +371,75 @@ Future<Uint8List> _buildReportPdf(ReportData report, String language) async {
   final arabicBoldFont = await PdfGoogleFonts.notoSansArabicBold();
   final latinFont = await PdfGoogleFonts.notoSansRegular();
   final latinBoldFont = await PdfGoogleFonts.notoSansBold();
-  final document = pw.Document(theme: pw.ThemeData.withFont(base: latinFont, bold: latinBoldFont, fontFallback: [arabicFont, arabicBoldFont]));
-  final direction = language == 'ar' ? pw.TextDirection.rtl : pw.TextDirection.ltr;
+  final isArabic = language == 'ar';
+  final baseFont = isArabic ? arabicFont : latinFont;
+  final boldFont = isArabic ? arabicBoldFont : latinBoldFont;
+  final fallbackFonts = isArabic ? [latinFont, latinBoldFont] : [arabicFont, arabicBoldFont];
+  final document = pw.Document(
+    theme: pw.ThemeData.withFont(
+      base: baseFont,
+      bold: boldFont,
+      fontFallback: fallbackFonts,
+    ),
+  );
+  final direction = isArabic ? pw.TextDirection.rtl : pw.TextDirection.ltr;
   final end = report.rangeEnd.subtract(const Duration(seconds: 1));
   String date(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}:${d.second.toString().padLeft(2, '0')}';
   String money(double v) => '${v.toStringAsFixed(0)} DZD';
   String tr(String ar, String en, String fr) => language == 'en' ? en : language == 'fr' ? fr : ar;
-  pw.Widget text(String value, {bool bold = false, double? size}) => pw.Text(value, style: pw.TextStyle(fontSize: size, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal, fontFallback: [arabicFont, arabicBoldFont]));
-  pw.Widget cell(String value, {bool bold = false}) => pw.Padding(padding: const pw.EdgeInsets.all(6), child: text(value, bold: bold));
+  pw.Widget text(String value, {bool bold = false, double? size}) => pw.Text(
+    value,
+    style: pw.TextStyle(
+      font: bold ? boldFont : baseFont,
+      fontSize: size,
+      fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+      fontFallback: fallbackFonts,
+    ),
+  );
+  pw.Widget cell(String value, {bool bold = false}) => pw.Padding(
+        padding: const pw.EdgeInsets.all(6),
+        child: text(value, bold: bold),
+      );
 
   document.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(32),
+      textDirection: direction,
       build: (_) => [
-        pw.Directionality(
-          textDirection: direction,
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              text('CompFlow - ${tr('تقرير المبيعات', 'Sales report', 'Rapport des ventes')}', bold: true, size: 22),
-              pw.SizedBox(height: 6),
-              text('${tr('الفترة', 'Period', 'Période')}: ${date(report.rangeStart)} - ${date(end)}'),
-              pw.SizedBox(height: 18),
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey400),
-                children: [
-                  pw.TableRow(children: [cell(tr('إجمالي المبيعات', 'Total sales', 'Ventes totales'), bold: true), cell(money(report.totalSales))]),
-                  pw.TableRow(children: [cell(tr('عدد الفواتير', 'Invoices', 'Factures'), bold: true), cell('${report.salesCount}')]),
-                  pw.TableRow(children: [cell(tr('متوسط الفاتورة', 'Average invoice', 'Panier moyen'), bold: true), cell(money(report.averageSale))]),
-                  pw.TableRow(children: [cell(tr('القطع المباعة', 'Items sold', 'Articles vendus'), bold: true), cell('${report.totalItemsSold}')]),
-                ],
-              ),
-              pw.SizedBox(height: 20),
-              text(tr('الفواتير', 'Invoices', 'Factures'), bold: true, size: 16),
-              pw.SizedBox(height: 8),
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey400),
-                columnWidths: {0: const pw.FlexColumnWidth(1.5), 1: const pw.FlexColumnWidth(2.5), 2: const pw.FlexColumnWidth(1.5)},
-                children: [
-                  pw.TableRow(children: [cell(tr('رقم الفاتورة', 'Invoice', 'Facture'), bold: true), cell(tr('التاريخ والوقت', 'Date & time', 'Date et heure'), bold: true), cell(tr('الإجمالي', 'Total', 'Total'), bold: true)]),
-                  for (final sale in report.sales.take(500))
-                    pw.TableRow(children: [cell(sale.invoiceNumber.toString()), cell(date(sale.saleDate as DateTime)), cell(money((sale.total as num).toDouble()))]),
-                ],
-              ),
-              pw.SizedBox(height: 20),
-              text(tr('الأكثر مبيعًا', 'Top products', 'Meilleurs produits'), bold: true, size: 16),
-              pw.SizedBox(height: 8),
-              for (var i = 0; i < report.topProducts.length; i++)
-                pw.Padding(padding: const pw.EdgeInsets.only(bottom: 5), child: text('${i + 1}. ${report.topProducts[i].name} — ${report.topProducts[i].quantity} ${tr('قطعة', 'units', 'unités')} — ${money(report.topProducts[i].salesTotal)}')),
-            ],
-          ),
+        text('CompFlow - ${tr('تقرير المبيعات', 'Sales report', 'Rapport des ventes')}', bold: true, size: 22),
+        pw.SizedBox(height: 6),
+        text('${tr('الفترة', 'Period', 'Période')}: ${date(report.rangeStart)} - ${date(end)}'),
+        pw.SizedBox(height: 18),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey400),
+          children: [
+            pw.TableRow(children: [cell(tr('إجمالي المبيعات', 'Total sales', 'Ventes totales'), bold: true), cell(money(report.totalSales))]),
+            pw.TableRow(children: [cell(tr('عدد الفواتير', 'Invoices', 'Factures'), bold: true), cell('${report.salesCount}')]),
+            pw.TableRow(children: [cell(tr('متوسط الفاتورة', 'Average invoice', 'Panier moyen'), bold: true), cell(money(report.averageSale))]),
+            pw.TableRow(children: [cell(tr('القطع المباعة', 'Items sold', 'Articles vendus'), bold: true), cell('${report.totalItemsSold}')]),
+          ],
         ),
+        pw.SizedBox(height: 20),
+        text(tr('الفواتير', 'Invoices', 'Factures'), bold: true, size: 16),
+        pw.SizedBox(height: 8),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey400),
+          columnWidths: {0: const pw.FlexColumnWidth(1.5), 1: const pw.FlexColumnWidth(2.5), 2: const pw.FlexColumnWidth(1.5)},
+          children: [
+            pw.TableRow(children: [cell(tr('رقم الفاتورة', 'Invoice', 'Facture'), bold: true), cell(tr('التاريخ والوقت', 'Date & time', 'Date et heure'), bold: true), cell(tr('الإجمالي', 'Total', 'Total'), bold: true)]),
+            for (final sale in report.sales.take(500))
+              pw.TableRow(children: [cell(sale.invoiceNumber.toString()), cell(date(sale.saleDate as DateTime)), cell(money((sale.total as num).toDouble()))]),
+          ],
+        ),
+        pw.SizedBox(height: 20),
+        text(tr('الأكثر مبيعًا', 'Top products', 'Meilleurs produits'), bold: true, size: 16),
+        pw.SizedBox(height: 8),
+        for (var i = 0; i < report.topProducts.length; i++)
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 5),
+            child: text('${i + 1}. ${report.topProducts[i].name} — ${report.topProducts[i].quantity} ${tr('قطعة', 'units', 'unités')} — ${money(report.topProducts[i].salesTotal)}'),
+          ),
       ],
     ),
   );
