@@ -7,14 +7,20 @@ import '../../l10n/app_localizations.dart';
 class AppSidebar extends ConsumerWidget {
   final int selectedIndex;
   final Function(int) onSelect;
-  final VoidCallback? onReports;
 
   const AppSidebar({
     super.key,
     required this.selectedIndex,
     required this.onSelect,
-    this.onReports,
   });
+
+  String _debtLabel(String language) {
+    return switch (language) {
+      'en' => 'Debts',
+      'fr' => 'Dettes',
+      _ => 'الديون',
+    };
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,6 +42,8 @@ class AppSidebar extends ConsumerWidget {
       (Icons.receipt_long_rounded, l10n.navSales),
       (Icons.people_alt_rounded, l10n.navUsers),
       (Icons.settings_rounded, l10n.navSettings),
+      (Icons.analytics_outlined, l10n.navReports),
+      (Icons.account_balance_wallet_outlined, _debtLabel(language)),
     ];
 
     final displayName = currentUser?.fullName.trim().isNotEmpty == true
@@ -115,15 +123,6 @@ class AppSidebar extends ConsumerWidget {
                         onTap: () => onSelect(index),
                       ),
                     ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 6),
-                    child: _SidebarItem(
-                      icon: Icons.analytics_outlined,
-                      label: l10n.navReports,
-                      selected: false,
-                      onTap: onReports,
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -184,7 +183,7 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
