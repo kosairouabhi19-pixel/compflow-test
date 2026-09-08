@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../../features/debts/pages/debts_page.dart';
 import '../../features/pos/pages/pos_page.dart';
 import '../../features/products/pages/products_page.dart';
 import '../../features/reports/pages/reports_page.dart';
@@ -24,7 +25,7 @@ class _MainLayoutState extends State<MainLayout> {
     return [
       DashboardPage(
         onNavigateToIndex: (index) {
-          if (index >= 0 && index < 6) setState(() => _index = index);
+          if (index >= 0 && index < 8) setState(() => _index = index);
         },
       ),
       const PosPage(),
@@ -32,13 +33,9 @@ class _MainLayoutState extends State<MainLayout> {
       const SalesPage(),
       const UsersPage(),
       const SettingsPage(),
+      const ReportsPage(),
+      const DebtsPage(),
     ];
-  }
-
-  Future<void> _openReports() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const ReportsPage()),
-    );
   }
 
   @override
@@ -53,6 +50,8 @@ class _MainLayoutState extends State<MainLayout> {
       NavigationDestination(icon: const Icon(Icons.receipt_long_rounded), label: l10n.navSales),
       NavigationDestination(icon: const Icon(Icons.people_alt_rounded), label: l10n.navUsers),
       NavigationDestination(icon: const Icon(Icons.settings_rounded), label: l10n.navSettings),
+      NavigationDestination(icon: const Icon(Icons.analytics_outlined), label: l10n.navReports),
+      NavigationDestination(icon: const Icon(Icons.account_balance_wallet_outlined), label: _debtLabel(context)),
     ];
 
     return LayoutBuilder(
@@ -66,7 +65,6 @@ class _MainLayoutState extends State<MainLayout> {
                   onSelect: (index) {
                     if (index >= 0 && index < pages.length) setState(() => _index = index);
                   },
-                  onReports: _openReports,
                 ),
                 Expanded(child: pages[_index]),
               ],
@@ -75,21 +73,7 @@ class _MainLayoutState extends State<MainLayout> {
         }
 
         return Scaffold(
-          body: Stack(
-            children: [
-              pages[_index],
-              if (_index == 0)
-                PositionedDirectional(
-                  top: 12,
-                  end: 16,
-                  child: FloatingActionButton.small(
-                    tooltip: l10n.navReports,
-                    onPressed: _openReports,
-                    child: const Icon(Icons.analytics_outlined),
-                  ),
-                ),
-            ],
-          ),
+          body: pages[_index],
           bottomNavigationBar: NavigationBar(
             selectedIndex: _index,
             destinations: destinations,
@@ -98,5 +82,13 @@ class _MainLayoutState extends State<MainLayout> {
         );
       },
     );
+  }
+
+  String _debtLabel(BuildContext context) {
+    return switch (Localizations.localeOf(context).languageCode) {
+      'en' => 'Debts',
+      'fr' => 'Dettes',
+      _ => 'الديون',
+    };
   }
 }
